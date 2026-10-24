@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D-Grape: допустимая ошибка позиционирования и курса</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap&subset=cyrillic" rel="stylesheet">
+<style>
+:root{
+  --paper:#E9EDEA;--sheet:#FBFCFA;--ink:#1C2226;--ink-2:#55606A;--rule:#A9B2B6;--rule-2:#D6DCDE;
+  --blue:#1A4BB0;--blue-bg:#E8EEFA;--vine:#2C6A31;--vine-bg:#E0EDDB;--red:#A3312A;--red-bg:#F5DFDB;--amber:#7A5100;--amber-bg:#F5E8C8;--env-f:#E7F0DC;--env-s:#3B6D11;--rob-f:#E3EEFA;--rob-s:#185FA5;--req-f:#F8DED3;--req-s:#993C1D;--err-f:#ECEAFB;--err-s:#534AB7;--ok-f:#DCEBD5;
+  --sans:"PT Sans","Segoe UI",Roboto,Arial,sans-serif;
+  --serif:"STIX Two Text","Cambria Math",Cambria,"Times New Roman",serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#101416;--sheet:#182024;--ink:#E3E8EA;--ink-2:#A3AEB4;--rule:#4A565C;--rule-2:#2E393E;
+    --blue:#9DBBFF;--blue-bg:#1E2A44;--vine:#93CD8C;--vine-bg:#1D3220;--red:#F2958C;--red-bg:#3D211D;--amber:#E9C46F;--amber-bg:#3A2F15;--env-f:#1E2F18;--env-s:#97C459;--rob-f:#1A2A40;--rob-s:#85B7EB;--req-f:#3A2219;--req-s:#F0997B;--err-f:#262247;--err-s:#AFA9EC;--ok-f:#1D3220;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101416;--sheet:#182024;--ink:#E3E8EA;--ink-2:#A3AEB4;--rule:#4A565C;--rule-2:#2E393E;
+  --blue:#9DBBFF;--blue-bg:#1E2A44;--vine:#93CD8C;--vine-bg:#1D3220;--red:#F2958C;--red-bg:#3D211D;--amber:#E9C46F;--amber-bg:#3A2F15;--env-f:#1E2F18;--env-s:#97C459;--rob-f:#1A2A40;--rob-s:#85B7EB;--req-f:#3A2219;--req-s:#F0997B;--err-f:#262247;--err-s:#AFA9EC;--ok-f:#1D3220;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 var(--sans);font-variant-numeric:tabular-nums}
+.page{position:relative;max-width:1180px;margin:20px auto;background:var(--sheet);border:1px solid var(--rule);padding:30px 34px 34px 50px}
+.page::before{content:"";position:absolute;inset:10px 10px 10px 26px;border:2px solid var(--ink);pointer-events:none}
+.page>*{position:relative}
+h1,h2,h3{font-family:var(--sans);font-weight:700;margin:0;line-height:1.2}
+h1{font-size:1.75rem;letter-spacing:-.01em}
+h2{font-size:1.3rem}
+h3{font-size:1.02rem}
+p{margin:0}
+sub,sup{font-size:.7em;line-height:0}
+.head{display:flex;gap:28px;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid var(--ink)}
+.head .sub-t{color:var(--ink-2);margin-top:8px;max-width:58ch}
+.stamp{border-collapse:collapse;border:2px solid var(--ink);min-width:340px;flex:0 0 auto}
+.stamp th,.stamp td{border:1px solid var(--ink);padding:6px 10px;text-align:left;vertical-align:top}
+.stamp th{font-weight:400;color:var(--ink-2);font-size:.88rem;width:11.5em}
+.stamp td{font-weight:700}
+.stamp td.ok{color:var(--vine)} .stamp td.warn{color:var(--amber)} .stamp td.bad{color:var(--red)}
+.stamp td small{display:block;font-weight:400;color:var(--ink-2);font-size:.82rem}
+.common{padding:22px 0 24px;border-bottom:1px solid var(--rule)}
+.common-grid{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:36px;margin-top:14px}
+.fields{display:grid;gap:12px}
+.fld label{display:block;color:var(--ink-2);font-size:.9rem;margin-bottom:2px}
+.ctl{display:flex;align-items:baseline;gap:8px}
+.ctl input,.ctl select{font:1.05rem var(--sans);font-variant-numeric:tabular-nums;color:var(--blue);background:var(--blue-bg);border:0;border-bottom:1.5px solid var(--rule);padding:4px 8px;width:8em;text-align:right;border-radius:2px 2px 0 0}
+.ctl select{width:auto;text-align:left}
+.ctl input:focus-visible,.ctl select:focus-visible,button:focus-visible,input[type=radio]:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ctl input[aria-invalid="true"]{border-bottom-color:var(--red)}
+.unit{color:var(--ink-2);font-size:.92rem}
+.hint{color:var(--ink-2);font-size:.82rem;margin-top:3px;max-width:42ch}
+.err{color:var(--red);font-size:.85rem;margin-top:3px}
+.row2{display:flex;gap:16px;flex-wrap:wrap}
+.btn{font:.92rem var(--sans);color:var(--ink);background:transparent;border:1px solid var(--rule);padding:6px 12px;border-radius:3px;cursor:pointer}
+.btn:hover{border-color:var(--ink)}
+fieldset{border:0;padding:0;margin:0 0 4px}
+legend{color:var(--ink-2);font-size:.9rem;padding:0;margin-bottom:4px}
+.radio{display:flex;gap:16px;flex-wrap:wrap}
+.radio label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.radio input{accent-color:var(--blue)}
+.tabs{display:flex;gap:4px;margin-top:26px;border-bottom:2px solid var(--ink);overflow-x:auto}
+.tab{font:1rem var(--sans);color:var(--ink-2);background:transparent;border:1px solid transparent;border-bottom:0;padding:9px 14px 8px;cursor:pointer;white-space:nowrap;border-radius:3px 3px 0 0;margin-bottom:-2px}
+.tab b{color:var(--ink);font-weight:700;margin-right:6px}
+.tab[aria-selected="true"]{color:var(--ink);background:var(--sheet);border-color:var(--ink);border-width:2px 2px 0}
+.panel{padding-top:24px}
+.panel .lead{color:var(--ink-2);max-width:78ch;margin-top:8px}
+.sheet{display:grid;grid-template-columns:minmax(260px,320px) 1fr;gap:36px;margin-top:22px}
+.inputs h3,.calc>h3{margin-bottom:12px}
+.blk{display:grid;grid-template-columns:44px 1fr;gap:0 16px;padding:18px 0;border-top:1px solid var(--rule-2)}
+.blk:first-child{border-top:0;padding-top:0}
+.code{font:700 .95rem var(--sans);border:1.5px solid var(--ink);text-align:center;padding:3px 0;height:fit-content}
+.code.dim{border-color:var(--rule);color:var(--ink-2)}
+.blk h3{margin-bottom:6px}
+.why{color:var(--ink-2);max-width:72ch;font-size:.95rem}
+.fml,.subst{font-family:var(--serif);overflow-x:auto;padding:2px 0}
+.fml{font-size:1.18rem;margin-top:10px;line-height:2}
+.subst{font-size:1rem;color:var(--ink-2);margin-top:4px;line-height:1.8}
+.subst b{color:var(--ink);font-weight:600}
+.fml i,.subst i{font-style:italic}
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .12em;line-height:1.25}
+.fr>span:first-child{padding:0 .25em .08em}
+.fr>span:last-child{border-top:1px solid currentColor;padding:.08em .25em 0}
+.res{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline}
+.res .big{font-size:1.25rem;font-weight:700}
+.st{display:inline-block;padding:2px 9px;border-radius:3px;font-size:.88rem}
+.st.ok{color:var(--vine);background:var(--vine-bg)} .st.warn{color:var(--amber);background:var(--amber-bg)} .st.bad{color:var(--red);background:var(--red-bg)} .st.info{color:var(--ink-2);background:var(--rule-2)}
+.note{margin-top:8px;font-size:.92rem;color:var(--ink-2);max-width:72ch}
+.alert{margin-top:10px;padding:8px 12px;border-left:3px solid var(--red);background:var(--red-bg);color:var(--red);font-size:.92rem;border-radius:0}
+.alert.warn{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+.total{border-top:2px solid var(--ink)}
+.wide{margin-top:8px}
+.wide .blk{grid-template-columns:44px 1fr}
+.wide .why{max-width:90ch}
+table.t td.note-c,table.t th:last-child{text-align:left}
+.tbl-wrap{overflow-x:auto;margin-top:12px}
+table.t{border-collapse:collapse;width:100%;min-width:640px;font-size:.93rem}
+table.t th,table.t td{border:1px solid var(--rule-2);padding:6px 9px;text-align:right;vertical-align:top}
+table.t th{font-weight:400;color:var(--ink-2);background:transparent}
+table.t td:first-child,table.t th:first-child{text-align:left}
+table.t tr.cur td{background:var(--blue-bg)}
+table.t td.ok{color:var(--vine)} table.t td.bad{color:var(--red)} table.t td.dim{color:var(--ink-2)}
+.linklike{font:inherit;color:var(--blue);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.rec{margin-top:10px;font-size:.98rem}
+.grp{font-weight:700;margin-top:8px;padding-top:10px;border-top:1px solid var(--rule-2)}
+footer{margin-top:30px;padding-top:14px;border-top:1px solid var(--rule);color:var(--ink-2);font-size:.88rem;max-width:90ch}
+[hidden]{display:none!important}
+@media (max-width:860px){
+  .page{margin:0;border:0;padding:22px 18px 26px 26px}
+  .page::before{inset:6px 6px 6px 14px}
+  .head{flex-direction:column}
+  .stamp{min-width:0;width:100%}
+  .common-grid,.sheet{grid-template-columns:1fr;gap:24px}
+  .blk{grid-template-columns:38px 1fr;gap:0 12px}
+  h1{font-size:1.45rem}
+}
+
+.fig{margin-top:12px;border:1px solid var(--rule-2);border-radius:6px;padding:12px;background:var(--sheet);overflow-x:auto}
+.fig svg{width:100%;min-width:640px;display:block}
+.fig-h{margin-top:26px}
+.chart svg{width:100%;max-width:680px;display:block;margin-top:12px}
+.ft{font:700 14px var(--sans)} .fs{font:12px var(--sans)}
+.stamp th{width:12em}
+
+.sitenav{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;margin:0 0 18px;font-size:.92rem}
+.sitenav a{color:var(--blue);text-decoration:none;border-bottom:1px solid transparent}
+.sitenav a:hover{border-bottom-color:currentColor}
+.sitenav a:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.sitenav a[aria-current="page"]{color:var(--ink);font-weight:700}
+.sitenav .home{margin-right:auto}
+</style>
+</head>
+<body>
+<div class="page">
+  <nav class="sitenav" aria-label="Разделы сайта"><a class="home" href="./">← Все расчёты</a><a href="cameras.html">Камеры и базис стереопар</a><a href="positioning.html" aria-current="page">Позиционирование и курс</a></nav>
+
+  <header class="head">
+    <div>
+      <h1>Допустимая ошибка позиционирования и курса</h1>
+      <p class="sub-t">Робот-опрыскиватель D-Grape, расчёт к ВКР. У каждого листа свои исходные данные. Синие поля можно менять, всё пересчитывается сразу. Под каждой формулой показана подстановка текущих чисел.</p>
+    </div>
+    <table class="stamp" aria-label="Сводка результатов">
+      <tr><th>Лист 1. Допустимая ошибка</th><td data-cell="crit"></td></tr>
+      <tr><th>Лист 2. Сдвиг центра</th><td data-cell="pos"></td></tr>
+      <tr><th>Лист 3. Ошибка курса</th><td data-cell="traj"></td></tr>
+      <tr><th>Лист 4. Одометрия</th><td data-cell="odo"></td></tr>
+    </table>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Листы расчёта">
+    <button class="tab" role="tab" id="t-over" aria-controls="p-over" aria-selected="true"><b>Схемы</b></button>
+    <button class="tab" role="tab" id="t-crit" aria-controls="p-crit" aria-selected="false" tabindex="-1"><b>Лист 1</b>Допустимая ошибка</button>
+    <button class="tab" role="tab" id="t-pos" aria-controls="p-pos" aria-selected="false" tabindex="-1"><b>Лист 2</b>Позиционирование</button>
+    <button class="tab" role="tab" id="t-traj" aria-controls="p-traj" aria-selected="false" tabindex="-1"><b>Лист 3</b>Траектория и курс</button>
+    <button class="tab" role="tab" id="t-odo" aria-controls="p-odo" aria-selected="false" tabindex="-1"><b>Лист 4</b>Одометрия</button>
+  </div>
+
+  <section class="panel" id="p-over" role="tabpanel" aria-labelledby="t-over">
+    <h2>Схемы</h2>
+    <p class="lead">Первая схема показывает, где в междурядье находится каждое условие и какие две ошибки мы допускаем. Вторая — из каких составляющих складывается итог и на каком листе каждая считается.</p>
+
+    <h3 class="fig-h">1. Условия и допустимые ошибки</h3>
+    <div class="fig">
+      <svg viewBox="0 0 960 430" role="img" aria-label="Вид сверху на междурядье: ряды с листвой, запас s, робот, сдвинутый на δy и повёрнутый на δψ, с обозначением всех условий">
+        <defs><marker id="ar1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+        <rect x="40" y="40" width="640" height="40" style="fill:var(--env-f);stroke:var(--env-s);stroke-width:.8"/>
+        <rect x="40" y="340" width="640" height="40" style="fill:var(--env-f);stroke:var(--env-s);stroke-width:.8"/>
+        <rect x="40" y="80" width="640" height="15" style="fill:var(--req-f);stroke:none"/>
+        <rect x="40" y="325" width="640" height="15" style="fill:var(--req-f);stroke:none"/>
+        <line x1="40" y1="60" x2="680" y2="60" style="stroke:var(--env-s);stroke-width:1;stroke-dasharray:6 4"/>
+        <line x1="40" y1="360" x2="680" y2="360" style="stroke:var(--env-s);stroke-width:1;stroke-dasharray:6 4"/>
+        <rect x="76" y="54" width="8" height="8" style="fill:var(--env-s)"/>
+        <rect x="196" y="58" width="8" height="8" style="fill:var(--env-s)"/>
+        <rect x="316" y="53" width="8" height="8" style="fill:var(--env-s)"/>
+        <rect x="436" y="59" width="8" height="8" style="fill:var(--env-s)"/>
+        <rect x="556" y="55" width="8" height="8" style="fill:var(--env-s)"/>
+        <rect x="76" y="358" width="8" height="8" style="fill:var(--env-s)"/>
+        <rect x="196" y="353" width="8" height="8" style="fill:var(--env-s)"/>
+        <rect x="316" y="359" width="8" height="8" style="fill:var(--env-s)"/>
+        <rect x="436" y="354" width="8" height="8" style="fill:var(--env-s)"/>
+        <rect x="556" y="358" width="8" height="8" style="fill:var(--env-s)"/>
+        <line x1="40" y1="210" x2="680" y2="210" style="stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 4"/>
+        <rect x="300" y="127.5" width="240" height="165" rx="4" style="fill:none;stroke:var(--ink-2);stroke-width:1;stroke-dasharray:5 4"/>
+        <rect x="300" y="145.5" width="240" height="165" rx="4" transform="rotate(5 420 228)" style="fill:var(--rob-f);stroke:var(--rob-s);stroke-width:1.2"/>
+        <line x1="420" y1="228" x2="569" y2="241" style="stroke:var(--rob-s);stroke-width:1.5" marker-end="url(#ar1)"/>
+        <line x1="420" y1="228" x2="585" y2="228" style="stroke:var(--err-s);stroke-width:1;stroke-dasharray:3 3"/>
+        <path d="M545 228 A125 125 0 0 1 544.5 238.9" style="fill:none;stroke:var(--err-s);stroke-width:1.5"/>
+        <circle cx="420" cy="210" r="3" style="fill:var(--ink-2)"/>
+        <circle cx="420" cy="228" r="4" style="fill:var(--err-s)"/>
+        <line x1="420" y1="212" x2="420" y2="224" style="stroke:var(--err-s);stroke-width:1.5" marker-end="url(#ar1)"/>
+        <line x1="420" y1="112" x2="540" y2="112" style="stroke:var(--rob-s);stroke-width:1"/>
+        <line x1="420" y1="106" x2="420" y2="118" style="stroke:var(--rob-s);stroke-width:1"/>
+        <line x1="540" y1="106" x2="540" y2="118" style="stroke:var(--rob-s);stroke-width:1"/>
+        <text x="480" y="106" text-anchor="middle" class="ft" style="fill:var(--rob-s)">L_п</text>
+        <line x1="610" y1="127.5" x2="610" y2="292.5" style="stroke:var(--rob-s);stroke-width:1"/>
+        <line x1="604" y1="127.5" x2="616" y2="127.5" style="stroke:var(--rob-s);stroke-width:1"/>
+        <line x1="604" y1="292.5" x2="616" y2="292.5" style="stroke:var(--rob-s);stroke-width:1"/>
+        <text x="620" y="196" class="ft" style="fill:var(--rob-s)">b</text>
+        <line x1="110" y1="60" x2="110" y2="360" style="stroke:var(--env-s);stroke-width:1"/>
+        <line x1="104" y1="60" x2="116" y2="60" style="stroke:var(--env-s);stroke-width:1"/>
+        <line x1="104" y1="360" x2="116" y2="360" style="stroke:var(--env-s);stroke-width:1"/>
+        <text x="120" y="196" class="ft" style="fill:var(--env-s)">B_м</text>
+        <line x1="160" y1="40" x2="160" y2="80" style="stroke:var(--env-s);stroke-width:1"/>
+        <line x1="154" y1="40" x2="166" y2="40" style="stroke:var(--env-s);stroke-width:1"/>
+        <line x1="154" y1="80" x2="166" y2="80" style="stroke:var(--env-s);stroke-width:1"/>
+        <text x="170" y="30" class="ft" style="fill:var(--env-s)">w_к</text>
+        <line x1="250" y1="292.5" x2="250" y2="340" style="stroke:var(--ink);stroke-width:1"/>
+        <line x1="244" y1="292.5" x2="256" y2="292.5" style="stroke:var(--ink);stroke-width:1"/>
+        <line x1="244" y1="340" x2="256" y2="340" style="stroke:var(--ink);stroke-width:1"/>
+        <text x="236" y="322" text-anchor="end" class="ft" style="fill:var(--ink)">c₀</text>
+        <text x="40" y="410" class="fs" style="fill:var(--req-s)">полоса s — запас до листвы</text>
+        <text x="300" y="410" class="fs" style="fill:var(--env-s)">квадраты — столбы ряда, их разброс задаёт e_ряд</text>
+        <line x1="430" y1="219" x2="460" y2="190" style="stroke:var(--err-s);stroke-width:.6;stroke-dasharray:3 2"/>
+        <text x="464" y="188" class="ft" style="fill:var(--err-s)">δy</text>
+        <line x1="547" y1="234" x2="585" y2="262" style="stroke:var(--err-s);stroke-width:.6;stroke-dasharray:3 2"/>
+        <text x="589" y="270" class="ft" style="fill:var(--err-s)">δψ</text>
+        <rect x="712" y="40" width="228" height="340" rx="6" style="fill:none;stroke:var(--rule);stroke-width:1"/>
+        <rect x="728" y="58" width="14" height="14" style="fill:var(--env-f);stroke:var(--env-s)"/>
+        <text x="750" y="70" class="ft" style="fill:var(--ink)">Среда</text>
+        <text x="750" y="90" class="fs" style="fill:var(--ink-2)">B_м, w_к, e_ряд</text>
+        <rect x="728" y="110" width="14" height="14" style="fill:var(--rob-f);stroke:var(--rob-s)"/>
+        <text x="750" y="122" class="ft" style="fill:var(--ink)">Робот</text>
+        <text x="750" y="142" class="fs" style="fill:var(--ink-2)">b, L_п</text>
+        <rect x="728" y="162" width="14" height="14" style="fill:var(--req-f);stroke:var(--req-s)"/>
+        <text x="750" y="174" class="ft" style="fill:var(--ink)">Требования</text>
+        <text x="750" y="194" class="fs" style="fill:var(--ink-2)">s — запас до листвы</text>
+        <text x="750" y="212" class="fs" style="fill:var(--ink-2)">k — как часто можно</text>
+        <text x="750" y="228" class="fs" style="fill:var(--ink-2)">выйти за границу</text>
+        <rect x="728" y="248" width="14" height="14" style="fill:var(--err-f);stroke:var(--err-s)"/>
+        <text x="750" y="260" class="ft" style="fill:var(--ink)">Допускаемые ошибки</text>
+        <text x="750" y="280" class="fs" style="fill:var(--ink-2)">δy — сдвиг центра вбок</text>
+        <text x="750" y="298" class="fs" style="fill:var(--ink-2)">δψ — поворот корпуса</text>
+        <line x1="728" y1="316" x2="924" y2="316" style="stroke:var(--rule-2);stroke-width:1"/>
+        <text x="728" y="338" class="fs" style="fill:var(--ink)">c₀ = (B_м − w_к − b) / 2</text>
+        <text x="728" y="360" class="fs" style="fill:var(--ink)">R = (c₀ − s − e_ряд) / k</text>
+      </svg>
+    </div>
+    <p class="note">Пунктир — номинальное положение робота по оси междурядья. Цветной корпус — фактическое: центр сдвинут на δy, корпус повёрнут на δψ, и передний угол подходит к полосе запаса. Критерий требует, чтобы сдвиг центра вместе с выступом угла уместился в c₀ − s − e_ряд с нужной надёжностью k. Отклонения на схеме увеличены.</p>
+
+    <h3 class="fig-h">2. Что рассчитываем и где</h3>
+    <div class="fig">
+      <svg viewBox="0 0 960 510" role="img" aria-label="Схема расчёта: условия дают зазор и допустимое СКО R; боковой сдвиг центра складывается из ошибок траектории, регулятора, локализации и поворота корпуса; ошибка курса — из регулятора, датчиков и направления ряда; итог сравнивается с допусками">
+        <defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+        <rect x="90" y="20" width="200" height="50" rx="6" style="fill:var(--env-f);stroke:var(--env-s);stroke-width:1"/>
+        <text x="190" y="42" text-anchor="middle" class="ft" style="fill:var(--ink)">Среда</text>
+        <text x="190" y="60" text-anchor="middle" class="fs" style="fill:var(--ink-2)">B_м, w_к, e_ряд</text>
+        <rect x="380" y="20" width="200" height="50" rx="6" style="fill:var(--rob-f);stroke:var(--rob-s);stroke-width:1"/>
+        <text x="480" y="42" text-anchor="middle" class="ft" style="fill:var(--ink)">Робот</text>
+        <text x="480" y="60" text-anchor="middle" class="fs" style="fill:var(--ink-2)">b, L_п</text>
+        <rect x="670" y="20" width="200" height="50" rx="6" style="fill:var(--req-f);stroke:var(--req-s);stroke-width:1"/>
+        <text x="770" y="42" text-anchor="middle" class="ft" style="fill:var(--ink)">Требования</text>
+        <text x="770" y="60" text-anchor="middle" class="fs" style="fill:var(--ink-2)">s, k</text>
+        <line x1="190" y1="70" x2="300" y2="108" style="stroke:var(--ink-2);stroke-width:1.2" marker-end="url(#ar2)"/>
+        <line x1="480" y1="70" x2="480" y2="108" style="stroke:var(--ink-2);stroke-width:1.2" marker-end="url(#ar2)"/>
+        <line x1="770" y1="70" x2="660" y2="108" style="stroke:var(--ink-2);stroke-width:1.2" marker-end="url(#ar2)"/>
+        <rect x="280" y="110" width="400" height="56" rx="6" style="fill:var(--sheet);stroke:var(--ink);stroke-width:1.2"/>
+        <text x="480" y="133" text-anchor="middle" class="ft" style="fill:var(--ink)">Допустимый бюджет: c₀ и R</text>
+        <text x="480" y="153" text-anchor="middle" class="fs" style="fill:var(--ink-2)">Лист 1: область допустимых σ_y и σ_ψ</text>
+        <line x1="380" y1="166" x2="250" y2="218" style="stroke:var(--ink-2);stroke-width:1.2" marker-end="url(#ar2)"/>
+        <line x1="580" y1="166" x2="710" y2="218" style="stroke:var(--ink-2);stroke-width:1.2" marker-end="url(#ar2)"/>
+        <rect x="30" y="220" width="440" height="180" rx="10" style="fill:none;stroke:var(--err-s);stroke-width:1;stroke-dasharray:5 4"/>
+        <text x="46" y="244" class="ft" style="fill:var(--ink)">Боковой сдвиг центра e_Σ</text>
+        <text x="454" y="244" text-anchor="end" class="fs" style="fill:var(--ink-2)">Лист 2</text>
+        <rect x="46" y="258" width="196" height="56" rx="6" style="fill:var(--err-f);stroke:var(--err-s);stroke-width:.8"/>
+        <text x="144" y="280" text-anchor="middle" class="ft" style="fill:var(--ink)">e_тр</text>
+        <text x="144" y="299" text-anchor="middle" class="fs" style="fill:var(--ink-2)">опорная траектория</text>
+        <rect x="258" y="258" width="196" height="56" rx="6" style="fill:var(--err-f);stroke:var(--err-s);stroke-width:.8"/>
+        <text x="356" y="280" text-anchor="middle" class="ft" style="fill:var(--ink)">e_упр</text>
+        <text x="356" y="299" text-anchor="middle" class="fs" style="fill:var(--ink-2)">ошибка регулятора</text>
+        <rect x="46" y="328" width="196" height="56" rx="6" style="fill:var(--rob-f);stroke:var(--rob-s);stroke-width:1.2"/>
+        <text x="144" y="350" text-anchor="middle" class="ft" style="fill:var(--ink)">e_лок</text>
+        <text x="144" y="369" text-anchor="middle" class="fs" style="fill:var(--ink-2)">локализация — подбираем</text>
+        <rect x="258" y="328" width="196" height="56" rx="6" style="fill:var(--err-f);stroke:var(--err-s);stroke-width:.8"/>
+        <text x="356" y="350" text-anchor="middle" class="ft" style="fill:var(--ink)">L_п · Δψ</text>
+        <text x="356" y="369" text-anchor="middle" class="fs" style="fill:var(--ink-2)">выступ угла корпуса</text>
+        <rect x="500" y="220" width="430" height="180" rx="10" style="fill:none;stroke:var(--err-s);stroke-width:1;stroke-dasharray:5 4"/>
+        <text x="516" y="244" class="ft" style="fill:var(--ink)">Ошибка курса Δψ</text>
+        <text x="914" y="244" text-anchor="end" class="fs" style="fill:var(--ink-2)">Лист 3</text>
+        <rect x="516" y="258" width="196" height="56" rx="6" style="fill:var(--err-f);stroke:var(--err-s);stroke-width:.8"/>
+        <text x="614" y="280" text-anchor="middle" class="ft" style="fill:var(--ink)">ψ_упр</text>
+        <text x="614" y="299" text-anchor="middle" class="fs" style="fill:var(--ink-2)">поворот при исправлении</text>
+        <rect x="718" y="258" width="196" height="56" rx="6" style="fill:var(--err-f);stroke:var(--err-s);stroke-width:.8"/>
+        <text x="816" y="280" text-anchor="middle" class="ft" style="fill:var(--ink)">δψ_ряд</text>
+        <text x="816" y="299" text-anchor="middle" class="fs" style="fill:var(--ink-2)">направление ряда</text>
+        <rect x="516" y="328" width="398" height="56" rx="6" style="fill:var(--rob-f);stroke:var(--rob-s);stroke-width:1.2"/>
+        <text x="715" y="350" text-anchor="middle" class="ft" style="fill:var(--ink)">δψ_оц — оценка курса датчиками</text>
+        <text x="715" y="369" text-anchor="middle" class="fs" style="fill:var(--ink-2)">IMU, одометрия, GNSS, VSLAM — подбираем</text>
+        <line x1="500" y1="356" x2="458" y2="356" style="stroke:var(--err-s);stroke-width:1.5" marker-end="url(#ar2)"/>
+        <text x="479" y="346" text-anchor="middle" class="fs" style="fill:var(--err-s)">Δψ</text>
+        <line x1="250" y1="400" x2="380" y2="440" style="stroke:var(--ink-2);stroke-width:1.2" marker-end="url(#ar2)"/>
+        <line x1="715" y1="400" x2="580" y2="440" style="stroke:var(--ink-2);stroke-width:1.2" marker-end="url(#ar2)"/>
+        <rect x="200" y="442" width="560" height="50" rx="6" style="fill:var(--sheet);stroke:var(--ink);stroke-width:1.2"/>
+        <text x="480" y="463" text-anchor="middle" class="ft" style="fill:var(--ink)">Итог: сравнение с допуском</text>
+        <text x="480" y="482" text-anchor="middle" class="fs" style="fill:var(--ink-2)">e_Σ ≤ e_max,  σ_лок ≤ σ_лок,доп,  σ_Δψ ≤ σ_ψ,доп</text>
+      </svg>
+    </div>
+    <p class="note">Синим выделены составляющие, которые зависят от выбора методов локализации: именно под них работает критерий. Остальные задаются регулятором и средой. Ошибка курса входит в боковой сдвиг через выступ угла корпуса L_п · Δψ. Лист 4 отдельно проверяет одометрию: какой дрейф допустим на участке пути без абсолютной поправки.</p>
+  </section>
+
+  <section class="panel" id="p-crit" role="tabpanel" aria-labelledby="t-crit" hidden>
+    <h2>Лист 1. Допустимая ошибка локализации</h2>
+    <p class="lead">Робот считается идеальным: регулятор точно ведёт по оценённой позе, задержек нет. Тогда центр смещается только из-за ошибок локализации — бокового положения и курса. Лист превращает условия в область допустимых пар (σ_y, σ_ψ). Это и есть критерий для выбора методов.</p>
+    <div class="sheet">
+      <div class="inputs">
+        <h3>Исходные данные</h3>
+        <div class="fields" data-fields="crit"></div>
+        <p style="margin-top:16px"><button type="button" class="btn" data-reset="crit">Вернуть исходные значения листа</button></p>
+      </div>
+      <div class="calc">
+        <div class="blk">
+          <div class="code dim">П1</div>
+          <div>
+            <h3>Свободный зазор и допустимое суммарное СКО</h3>
+            <p class="why">Зазор между бортом и рядом уменьшаем на запас до листвы и на неровность ряда, затем делим на коэффициент охвата. Получается допустимое СКО суммарного сдвига угла корпуса.</p>
+            <div class="fml"><i>c</i><sub>0</sub> = <span class="fr"><span><i>B</i><sub>м</sub> − <i>w</i><sub>к</sub> − <i>b</i></span><span>2</span></span>,&ensp; <i>R</i> = <span class="fr"><span><i>c</i><sub>0</sub> − <i>s</i> − <i>e</i><sub>ряд</sub></span><span><i>k</i></span></span></div>
+            <div class="subst" data-sub="c_R"></div>
+            <div class="res"><span>R = <span class="big" data-out="c_R"></span></span><span class="st" data-status="c_R"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">К1</div>
+          <div>
+            <h3>Критерий по СКО</h3>
+            <p class="why">Сдвиг центра и выступ угла от поворота — независимые случайные величины, поэтому их дисперсии складываются. Всё, что лежит под линией графика, допустимо.</p>
+            <div class="fml"><i>σ</i><sub>y</sub><sup>2</sup> + (<i>L</i><sub>п</sub>·<i>σ</i><sub>ψ</sub>)<sup>2</sup> ≤ <i>R</i><sup>2</sup> &ensp;⇒&ensp; <i>σ</i><sub>y,max</sub> = √(<i>R</i><sup>2</sup> − (<i>L</i><sub>п</sub>·<i>σ</i><sub>ψ</sub>)<sup>2</sup>),&ensp; <i>σ</i><sub>ψ,max</sub> = <span class="fr"><span><i>R</i></span><span><i>L</i><sub>п</sub></span></span></div>
+            <div class="subst" data-sub="c_k1"></div>
+            <div class="chart" data-sub="c_chart"></div>
+            <p class="note">Зелёная область — допустимые пары. Ромб — расчётная точка К2, круг — проверяемый метод К3.</p>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">К2</div>
+          <div>
+            <h3>Расчётная точка: делим бюджет между положением и курсом</h3>
+            <p class="why">Чтобы разрабатывать позиционирование и курс по отдельности, отдайте курсу долю q бюджета R². Остальное достаётся положению.</p>
+            <div class="fml"><i>σ</i><sub>ψ,доп</sub> = <span class="fr"><span>√<i>q</i> · <i>R</i></span><span><i>L</i><sub>п</sub></span></span>,&ensp; <i>σ</i><sub>y,доп</sub> = √(1 − <i>q</i>) · <i>R</i></div>
+            <div class="subst" data-sub="c_k2"></div>
+            <div class="res"><span>σ<sub>y,доп</sub> = <span class="big" data-out="c_yDes"></span></span><span>σ<sub>ψ,доп</sub> = <span class="big" data-out="c_psiDes"></span></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">К3</div>
+          <div>
+            <h3>Проверка метода</h3>
+            <p class="why">Подставьте СКО бокового положения и курса, которые даёт метод по статьям, паспорту или испытаниям. Метод подходит, если его точка лежит под линией.</p>
+            <div class="fml"><i>V</i> = √(<i>σ</i><sub>y,м</sub><sup>2</sup> + (<i>L</i><sub>п</sub>·<i>σ</i><sub>ψ,м</sub>)<sup>2</sup>) ≤ <i>R</i></div>
+            <div class="subst" data-sub="c_k3"></div>
+            <div class="res"><span>V = <span class="big" data-out="c_V"></span></span><span class="st" data-status="c_k3"></span></div>
+          </div>
+        </div>
+        <div class="blk total">
+          <div class="code">К4</div>
+          <div>
+            <h3>Критерий по предельным значениям</h3>
+            <p class="why">Если метод описан максимальной ошибкой, а не СКО, сравнивайте с этим вариантом. Здесь сдвиг и выступ складываются арифметически, без k.</p>
+            <div class="fml"><i>δy</i><sub>max</sub> = <i>c</i><sub>0</sub> − <i>s</i> − <i>e</i><sub>ряд</sub> − [<i>L</i><sub>п</sub>·sin <i>δψ</i><sub>max</sub> − (<i>b</i>/2)·(1 − cos <i>δψ</i><sub>max</sub>)]</div>
+            <div class="tbl-wrap">
+              <table class="t">
+                <thead><tr><th scope="col">Предельная ошибка курса δψ<sub>max</sub></th><th scope="col">Допустимый предельный сдвиг δy<sub>max</sub>, мм</th></tr></thead>
+                <tbody data-sub="c_det"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-pos" role="tabpanel" aria-labelledby="t-pos" hidden>
+    <h2>Лист 2. Позиционирование: допустимый сдвиг центра</h2>
+    <p class="lead">Реальный робот: часть бокового сдвига дают опорная траектория и регулятор, и локализации остаётся меньше. Ошибка курса здесь берётся как предельное значение Δψ, поэтому оценка консервативная. Лист даёт допустимый сдвиг центра, долю локализации и путь, который можно пройти без коррекции положения.</p>
+    <div class="sheet">
+      <div class="inputs">
+        <h3>Исходные данные</h3>
+        <div class="fields" data-fields="pos"></div>
+        <p style="margin-top:16px"><button type="button" class="btn" data-reset="pos">Вернуть исходные значения листа</button></p>
+      </div>
+      <div class="calc">
+        <div class="blk">
+          <div class="code dim">П1</div>
+          <div>
+            <h3>Свободный зазор и выступ угла корпуса</h3>
+            <p class="why">Угол корпуса находится на L<sub>п</sub> впереди центра и на b/2 сбоку. При повороте на Δψ он выходит вбок дальше борта.</p>
+            <div class="fml"><i>c</i><sub>0</sub> = <span class="fr"><span><i>B</i><sub>м</sub> − <i>w</i><sub>к</sub> − <i>b</i></span><span>2</span></span>,&ensp; <i>Δ</i><sub>ψ</sub> = <i>L</i><sub>п</sub>·sin <i>Δψ</i> − (<i>b</i>/2)·(1 − cos <i>Δψ</i>)</div>
+            <div class="subst" data-sub="p_1"></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">П2</div>
+          <div>
+            <h3>Допустимый сдвиг центра</h3>
+            <div class="fml"><i>e</i><sub>max</sub> = <i>c</i><sub>0</sub> − <i>s</i> − <i>Δ</i><sub>ψ</sub></div>
+            <div class="subst" data-sub="p_2"></div>
+            <div class="res"><span>e<sub>max</sub> = <span class="big" data-out="p_emax"></span></span><span class="st" data-status="p_emax"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">П3</div>
+          <div>
+            <h3>Доля локализации</h3>
+            <p class="why">e<sub>max</sub> — предел, поэтому с ним сравнивается k·σ. Из допустимой дисперсии сдвига вычитаем доли опорной траектории и регулятора.</p>
+            <div class="fml"><i>σ</i><sub>e,доп</sub> = <span class="fr"><span><i>e</i><sub>max</sub></span><span><i>k</i></span></span>,&ensp; <i>σ</i><sub>лок,доп</sub> = √(<i>σ</i><sub>e,доп</sub><sup>2</sup> − <i>σ</i><sub>тр</sub><sup>2</sup> − <i>σ</i><sub>упр</sub><sup>2</sup>)</div>
+            <div class="subst" data-sub="p_3"></div>
+            <div class="res"><span>σ<sub>лок,доп</sub> = <span class="big" data-out="p_sl"></span></span><span class="st" data-status="p_sl"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">П4</div>
+          <div>
+            <h3>Путь без коррекции положения</h3>
+            <p class="why">Скорость не меняет допуск, она определяет, как быстро он расходуется. Если оценка курса ошибается на δψ<sub>оц</sub> и абсолютной поправки нет, робот уходит вбок на sin δψ<sub>оц</sub> на каждый метр.</p>
+            <div class="fml"><i>S</i><sub>кр</sub> = <span class="fr"><span><i>e</i><sub>max</sub></span><span>sin <i>δψ</i><sub>оц</sub></span></span>,&ensp; <i>t</i><sub>кр</sub> = <span class="fr"><span><i>S</i><sub>кр</sub></span><span><i>v</i></span></span></div>
+            <div class="subst" data-sub="p_4"></div>
+            <div class="res"><span>S<sub>кр</sub> = <span class="big" data-out="p_Skr"></span></span><span>t<sub>кр</sub> = <span class="big" data-out="p_tkr"></span></span></div>
+          </div>
+        </div>
+        <div class="blk total">
+          <div class="code">Т</div>
+          <div>
+            <h3>Зависимость от ошибки курса</h3>
+            <div class="tbl-wrap">
+              <table class="t">
+                <thead><tr><th scope="col">Δψ</th><th scope="col">Выступ угла, мм</th><th scope="col">e<sub>max</sub>, мм</th><th scope="col">σ<sub>e,доп</sub>, мм</th><th scope="col">σ<sub>лок,доп</sub>, мм</th><th scope="col">k·σ<sub>лок,доп</sub>, мм</th></tr></thead>
+                <tbody data-sub="p_table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-traj" role="tabpanel" aria-labelledby="t-traj" hidden>
+    <h2>Лист 3. Траектория: ошибка курса</h2>
+    <p class="lead">Фактический угол корпуса к ряду складывается из трёх частей: угла, который набирает регулятор, исправляя смещение; ошибки оценки курса датчиками; отклонения направления ряда от траектории. Лист считает каждую часть и итог.</p>
+    <div class="sheet">
+      <div class="inputs">
+        <h3>Исходные данные</h3>
+        <div class="fields" data-fields="traj"></div>
+        <p style="margin-top:16px"><button type="button" class="btn" data-reset="traj">Вернуть исходные значения листа</button></p>
+      </div>
+      <div class="calc">
+        <div class="blk">
+          <div class="code">Т1</div>
+          <div>
+            <h3>Регулятор: курс при исправлении смещения</h3>
+            <p class="why">Pure Pursuit ведёт робот на точку траектории, удалённую на L<sub>d</sub>. Чтобы убрать смещение e, корпус поворачивается к ряду. Шум позиционирования через ту же геометрию сам порождает колебания курса.</p>
+            <div class="fml"><i>ψ</i><sub>упр</sub> ≈ arctg <span class="fr"><span><i>e</i></span><span><i>L</i><sub>d</sub></span></span>,&ensp; <i>σ</i><sub>ψ,упр</sub> ≈ <span class="fr"><span><i>σ</i><sub>лок</sub></span><span><i>L</i><sub>d</sub></span></span></div>
+            <div class="subst" data-sub="t_1"></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Т2</div>
+          <div>
+            <h3>Гироскоп IMU</h3>
+            <p class="why">Смещение нуля даёт ошибку, растущую линейно со временем; белый шум — случайное блуждание, растущее как корень из времени; ошибка масштаба пропорциональна углу поворота. Параметры берутся из паспорта IMU.</p>
+            <div class="fml"><i>δψ</i><sub>IMU</sub> = <i>b</i><sub>g</sub>·<i>T</i> + ARW·√<i>T</i> + <i>k</i><sub>м</sub>·<i>ψ</i><sub>пов</sub></div>
+            <div class="subst" data-sub="t_2"></div>
+            <div class="res"><span class="st" data-status="src_imu"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Т3</div>
+          <div>
+            <h3>Гусеничная одометрия</h3>
+            <p class="why">Курс считается по разности скоростей гусениц. Разное проскальзывание гусениц Δε даёт ошибку, растущую с пройденным путём.</p>
+            <div class="fml"><i>δψ</i><sub>одом</sub> = <span class="fr"><span><i>Δε</i></span><span><i>B</i><sub>эфф</sub></span></span> · <i>S</i></div>
+            <div class="subst" data-sub="t_3"></div>
+            <div class="res"><span class="st" data-status="src_odo"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Т4</div>
+          <div>
+            <h3>RTK-GNSS с двумя антеннами</h3>
+            <p class="why">Курс считается по вектору между антеннами. Ошибка обратно пропорциональна их разносу D. Работает, пока под листвой держится RTK fix.</p>
+            <div class="fml"><i>σ</i><sub>ψ,GNSS</sub> = <span class="fr"><span><i>σ</i><sub>отн</sub></span><span><i>D</i></span></span></div>
+            <div class="subst" data-sub="t_4"></div>
+            <div class="res"><span class="st" data-status="src_gnss"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Т5</div>
+          <div>
+            <h3>VSLAM по видимому ряду</h3>
+            <p class="why">Направление ряда находится прямой по его точкам. Погрешность наклона прямой по методу наименьших квадратов зависит от разброса точек, их числа и длины видимого участка.</p>
+            <div class="fml"><i>σ</i><sub>ψ,VSLAM</sub> = <span class="fr"><span><i>σ</i><sub>y,ряд</sub> · √12</span><span>√<i>N</i> · <i>ℓ</i></span></span></div>
+            <div class="subst" data-sub="t_5"></div>
+            <div class="res"><span class="st" data-status="src_vslam"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Т6</div>
+          <div>
+            <h3>Направление ряда</h3>
+            <p class="why">Столбы шпалеры стоят с поперечным разбросом σ<sub>ст</sub> через d<sub>ст</sub>, поэтому местное направление ряда гуляет. Если робот едет по видимому ряду, эта часть не учитывается.</p>
+            <div class="fml"><i>δψ</i><sub>ряд</sub> = <span class="fr"><span>√2 · <i>σ</i><sub>ст</sub></span><span><i>d</i><sub>ст</sub></span></span></div>
+            <div class="subst" data-sub="t_6"></div>
+            <div class="res"><span class="st" data-status="t_row"></span></div>
+          </div>
+        </div>
+        <div class="blk total">
+          <div class="code">Σ</div>
+          <div>
+            <h3>Итоговая ошибка курса</h3>
+            <p class="why">Части независимы и складываются в квадратах. Выступ угла корпуса — это вклад ошибки курса в боковой сдвиг.</p>
+            <div class="fml"><i>σ</i><sub>Δψ</sub> = √(<i>σ</i><sub>ψ,упр</sub><sup>2</sup> + <i>δψ</i><sub>оц</sub><sup>2</sup> + <i>δψ</i><sub>ряд</sub><sup>2</sup>),&ensp; <i>L</i><sub>п</sub> · <i>σ</i><sub>Δψ</sub></div>
+            <div class="subst" data-sub="t_sum"></div>
+            <div class="res"><span>σ<sub>Δψ</sub> = <span class="big" data-out="t_total"></span></span><span class="st info" data-status="t_dom"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-odo" role="tabpanel" aria-labelledby="t-odo" hidden>
+    <h2>Лист 4. Допустимая ошибка одометрии</h2>
+    <p class="lead">Одометрия копит ошибку с пройденным путём, поэтому допустимая ошибка задаётся не на день, а на участок без абсолютной поправки: маркера, RTK fix или привязки к видимому ряду. Лист показывает, какой дрейф допустим на заданном участке, и какой участок выдерживает выбранный метод.</p>
+    <div class="sheet">
+      <div class="inputs">
+        <h3>Исходные данные</h3>
+        <div class="fields" data-fields="odo"></div>
+        <p style="margin-top:16px"><button type="button" class="btn" data-reset="odo">Вернуть исходные значения листа</button></p>
+      </div>
+      <div class="calc">
+        <div class="blk">
+          <div class="code dim">О0</div>
+          <div>
+            <h3>Как растёт ошибка одометрии</h3>
+            <p class="why">Ошибку одометрии описывают двумя числами в долях пути: поступательный дрейф ε в процентах и дрейф курса r в градусах на 100 м. Ошибка положения растёт пропорционально пути. Ошибка курса тоже растёт с путём, а боковое смещение — это интеграл курса, поэтому от неё оно растёт с квадратом пути. К этому добавляется начальная ошибка курса δψ<sub>0</sub> после обнуления.</p>
+            <div class="fml"><i>e</i><sub>ε</sub>(<i>S</i>) = <i>ε</i> · <i>S</i>,&ensp; <i>y</i>(<i>S</i>) = <i>δψ</i><sub>0</sub> · <i>S</i> + ½ · <i>r</i> · <i>S</i><sup>2</sup></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">О1</div>
+          <div>
+            <h3>Начальная ошибка курса после обнуления</h3>
+            <p class="why">По одному маркеру курс определяется плохо. По двум маркерам, разнесённым на D, курс считается по разности их положений. Даже без дрейфа одна начальная ошибка курса исчерпывает допуск за путь S<sub>0</sub>.</p>
+            <div class="fml"><i>δψ</i><sub>0</sub> = <span class="fr"><span>√2 · <i>σ</i><sub>поз</sub></span><span><i>D</i></span></span>,&ensp; <i>S</i><sub>0</sub> = <span class="fr"><span><i>e</i><sub>доп</sub></span><span>tg <i>δψ</i><sub>0</sub></span></span></div>
+            <div class="subst" data-sub="o_1"></div>
+            <div class="res"><span>δψ<sub>0</sub> = <span class="big" data-out="o_dpsi0"></span></span><span>S<sub>0</sub> = <span class="big" data-out="o_S0"></span></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">О2</div>
+          <div>
+            <h3>Допустимый дрейф на участке S</h3>
+            <p class="why">Ошибка к концу самого длинного участка без поправки не должна превышать e<sub>доп</sub>. Для дрейфа курса из допуска сначала вычитается вклад начальной ошибки курса.</p>
+            <div class="fml"><i>ε</i><sub>доп</sub> = <span class="fr"><span><i>e</i><sub>доп</sub></span><span><i>S</i></span></span>,&ensp; <i>r</i><sub>доп</sub> = <span class="fr"><span>2 · (<i>e</i><sub>доп</sub> − <i>δψ</i><sub>0</sub> · <i>S</i>)</span><span><i>S</i><sup>2</sup></span></span></div>
+            <div class="subst" data-sub="o_2"></div>
+            <div class="res"><span>ε<sub>доп</sub> = <span class="big" data-out="o_epsDop"></span></span><span>r<sub>доп</sub> = <span class="big" data-out="o_rDop"></span></span><span class="st" data-status="o_rDop"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">О3</div>
+          <div>
+            <h3>Какой участок выдерживает метод</h3>
+            <p class="why">Обратная задача: для заданных ε и r находим путь, за который ошибка дойдёт до e<sub>доп</sub>. Участок ограничивает меньшее из двух значений.</p>
+            <div class="fml"><i>S</i><sub>ε</sub> = <span class="fr"><span><i>e</i><sub>доп</sub></span><span><i>ε</i></span></span>,&ensp; <i>S</i><sub>ψ</sub> = <span class="fr"><span>−<i>δψ</i><sub>0</sub> + √(<i>δψ</i><sub>0</sub><sup>2</sup> + 2 · <i>r</i> · <i>e</i><sub>доп</sub>)</span><span><i>r</i></span></span>,&ensp; <i>S</i><sub>max</sub> = min(<i>S</i><sub>ε</sub>; <i>S</i><sub>ψ</sub>)</div>
+            <div class="subst" data-sub="o_3"></div>
+            <div class="res"><span>S<sub>max</sub> = <span class="big" data-out="o_Smax"></span></span><span class="st info" data-status="o_lim"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">О4</div>
+          <div>
+            <h3>Проверка метода на участке S</h3>
+            <div class="fml"><i>ε</i> · <i>S</i> ≤ <i>e</i><sub>доп</sub> &ensp;и&ensp; <i>δψ</i><sub>0</sub> · <i>S</i> + ½ · <i>r</i> · <i>S</i><sup>2</sup> ≤ <i>e</i><sub>доп</sub></div>
+            <div class="subst" data-sub="o_4"></div>
+            <div class="res"><span class="st" data-status="o_ok"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">О5</div>
+          <div>
+            <h3>Как часто нужна абсолютная поправка</h3>
+            <div class="fml"><i>t</i><sub>max</sub> = <span class="fr"><span><i>S</i><sub>max</sub></span><span><i>v</i></span></span>,&ensp; <i>N</i><sub>день</sub> = <span class="fr"><span><i>L</i><sub>день</sub></span><span><i>S</i><sub>max</sub></span></span></div>
+            <div class="subst" data-sub="o_5"></div>
+            <div class="res"><span>t<sub>max</sub> = <span class="big" data-out="o_tmax"></span></span><span>N<sub>день</sub> = <span class="big" data-out="o_N"></span></span></div>
+          </div>
+        </div>
+        <div class="blk total">
+          <div class="code">Т</div>
+          <div>
+            <h3>Допустимый дрейф для разных участков</h3>
+            <p class="why">Верхняя строка — обнуление раз в день, нижние — поправка на каждом ряду и разворот между рядами без ориентиров.</p>
+            <div class="tbl-wrap">
+              <table class="t">
+                <thead><tr><th scope="col">Участок без поправки S</th><th scope="col">ε<sub>доп</sub>, %</th><th scope="col">r<sub>доп</sub>, °/100 м</th><th scope="col">Метод выдерживает</th></tr></thead>
+                <tbody data-sub="o_table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Допущения: ошибки составляющих независимы и распределены нормально; углы малы. Курс в листе 2 берётся как предельное значение, в листе 1 — как СКО. Источники формул: ISO 12188-2:2012 (критерий бокового отклонения); GUM / ГОСТ 34100.3-2017 (сложение дисперсий, коэффициент охвата); Coulter, 1992 (Pure Pursuit); Woodman, 2007 (ошибки гироскопа); бенчмарк KITTI (дрейф одометрии в процентах пути и градусах на 100 м). Параметры датчиков берутся из их паспортов, а итоговые значения стоит подтвердить в симуляции, сравнивая оценку позы с истинной.
+  </footer>
+</div>
+
+<script>
+const DEFAULTS = {
+  k1_B: 2.0, k1_w: 0, k1_er: 0, k1_b: 1.1, k1_Lp: 0.8, k1_s: 0.10, k1_k: 3, k1_q: 10, k1_my: 0.05, k1_mpsi: 1.0,
+  p_B: 2.0, p_w: 0, p_b: 1.1, p_Lp: 0.8, p_s: 0.10, p_k: 3, p_dpsi: 2, p_str: 0.03, p_sup: 0.03, p_v: 4.2, p_dest: 1,
+  t_e: 0.10, t_Ld: 2.0, t_sl: 0.05, t_src: "imu", t_bg: 40, t_arw: 4.7, t_km: 0.5, t_T: 100, t_turn: 180,
+  t_de: 1, t_Be: 1.0, t_S: 10, t_sr: 2.4, t_D: 1.0, t_sy: 0.05, t_N: 50, t_l: 5,
+  t_path: "row", t_sp: 0.03, t_dp: 5, t_Lp: 0.8,
+  o_e: 0.35, o_S: 200, o_eps: 1.2, o_r: 0.5, o_src: "markers", o_sp: 10, o_D: 2.0, o_dpsi: 1.0, o_v: 4.2, o_day: 24
+};
+
+const RAD = Math.PI / 180;
+const protr = (Lp, b, psiRad) => Lp * Math.sin(psiRad) - (b / 2) * (1 - Math.cos(psiRad));
+
+function computeCrit(s) {
+  const r = {};
+  r.c0 = (s.k1_B - s.k1_w - s.k1_b) / 2;
+  r.avail = r.c0 - s.k1_s - s.k1_er;
+  r.R = r.avail / s.k1_k;
+  r.ok = r.c0 > 0 && r.R > 0;
+  r.psiMax = r.R / s.k1_Lp;
+  const q = s.k1_q / 100;
+  r.psiDes = Math.sqrt(q) * r.R / s.k1_Lp;
+  r.yDes = Math.sqrt(1 - q) * r.R;
+  r.mpsi = s.k1_mpsi * RAD;
+  r.V = Math.sqrt(s.k1_my ** 2 + (s.k1_Lp * r.mpsi) ** 2);
+  r.methodOk = r.V <= r.R;
+  r.margin = (r.R - r.V) / r.R;
+  const t = r.R ** 2 - (s.k1_Lp * r.mpsi) ** 2;
+  r.yAtMethod = t > 0 ? Math.sqrt(t) : 0;
+  r.det = [0, 1, 2, 3, 5, 8].map(d => ({ d, y: r.c0 - s.k1_s - s.k1_er - protr(s.k1_Lp, s.k1_b, d * RAD) }));
+  return r;
+}
+
+function computePos(s) {
+  const r = {};
+  r.c0 = (s.p_B - s.p_w - s.p_b) / 2;
+  r.v = s.p_v / 3.6;
+  const row = d => {
+    const D = protr(s.p_Lp, s.p_b, d * RAD);
+    const emax = r.c0 - s.p_s - D;
+    const se = emax / s.p_k;
+    const t = se ** 2 - s.p_str ** 2 - s.p_sup ** 2;
+    const sl = emax > 0 && t > 0 ? Math.sqrt(t) : NaN;
+    return { d, D, emax, se, sl };
+  };
+  Object.assign(r, row(s.p_dpsi));
+  r.dest = s.p_dest * RAD;
+  r.Skr = r.dest > 0 ? r.emax / Math.sin(r.dest) : Infinity;
+  r.tkr = r.Skr / r.v;
+  r.table = [0, 0.5, 1, 2, 3, 5, 10].map(row);
+  return r;
+}
+
+function computeTraj(s) {
+  const r = {};
+  r.upMax = Math.atan(s.t_e / s.t_Ld) / RAD;
+  r.upSig = (s.t_sl / s.t_Ld) / RAD;
+  r.imuBias = s.t_bg * s.t_T / 3600;
+  r.imuArw = s.t_arw * Math.sqrt(s.t_T / 3600);
+  r.imuScale = s.t_km / 100 * s.t_turn;
+  r.imu = r.imuBias + r.imuArw + r.imuScale;
+  r.odoRate = (s.t_de / 100) / s.t_Be / RAD;
+  r.odo = r.odoRate * s.t_S;
+  r.gnss = (s.t_sr / 1000) / s.t_D / RAD;
+  r.vslam = (s.t_sy * Math.sqrt(12) / (Math.sqrt(s.t_N) * s.t_l)) / RAD;
+  r.row = (Math.SQRT2 * s.t_sp / s.t_dp) / RAD;
+  const src = { imu: r.imu, odo: r.odo, gnss: r.gnss, vslam: r.vslam };
+  r.est = src[s.t_src];
+  r.rowUsed = s.t_path === "map" ? r.row : 0;
+  r.total = Math.sqrt(r.upSig ** 2 + r.est ** 2 + r.rowUsed ** 2);
+  r.protr = s.t_Lp * r.total * RAD;
+  const parts = [["регулятор", r.upSig], ["оценка курса", r.est], ["направление ряда", r.rowUsed]];
+  r.dominant = parts.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+  r.shares = parts.map(([n, v]) => [n, r.total > 0 ? v * v / (r.total * r.total) : 0]);
+  return r;
+}
+
+function computeOdo(s) {
+  const r = {};
+  r.dpsiM = Math.SQRT2 * (s.o_sp / 1000) / s.o_D;
+  r.dpsi0 = s.o_src === "markers" ? r.dpsiM : s.o_dpsi * RAD;
+  r.S0 = r.dpsi0 > 0 ? s.o_e / Math.tan(r.dpsi0) : Infinity;
+  r.epsDop = s.o_e / s.o_S * 100;
+  r.rem = s.o_e - r.dpsi0 * s.o_S;
+  r.rDop = r.rem > 0 ? 2 * r.rem / s.o_S ** 2 : NaN;
+  r.rDopDeg = r.rDop / RAD * 100;
+  r.rm = s.o_r * RAD / 100;
+  r.Seps = s.o_eps > 0 ? s.o_e / (s.o_eps / 100) : Infinity;
+  r.Spsi = r.rm > 0 ? (-r.dpsi0 + Math.sqrt(r.dpsi0 ** 2 + 2 * r.rm * s.o_e)) / r.rm : (r.dpsi0 > 0 ? s.o_e / r.dpsi0 : Infinity);
+  r.Smax = Math.min(r.Seps, r.Spsi);
+  r.lim = r.Seps <= r.Spsi ? "поступательный дрейф" : "дрейф курса";
+  r.eEps = s.o_eps / 100 * s.o_S;
+  r.ePsi = r.dpsi0 * s.o_S + 0.5 * r.rm * s.o_S ** 2;
+  r.ok = r.eEps <= s.o_e && r.ePsi <= s.o_e;
+  r.v = s.o_v / 3.6;
+  r.tmax = r.Smax / r.v;
+  r.Nday = Number.isFinite(r.Smax) && r.Smax > 0 ? Math.ceil(s.o_day * 1000 / r.Smax) : 0;
+  r.table = [24000, 1000, 200, 100, 50, 20].map(S => {
+    const rem = s.o_e - r.dpsi0 * S;
+    const rd = rem > 0 ? 2 * rem / S ** 2 / RAD * 100 : NaN;
+    const ok = s.o_eps / 100 * S <= s.o_e && r.dpsi0 * S + 0.5 * r.rm * S * S <= s.o_e;
+    return { S, eps: s.o_e / S * 100, rd, ok };
+  });
+  return r;
+}
+
+if (typeof module !== "undefined") module.exports = { computeCrit, computePos, computeTraj, computeOdo, DEFAULTS };
+
+</script>
+<script>
+(function(){
+  const FIELDS = {
+    crit: [
+      {id:"k1_B", head:"Среда", label:"Ширина междурядья <i>B</i><sub>м</sub>", unit:"м", rule:"pos"},
+      {id:"k1_w", label:"Ширина полосы листвы <i>w</i><sub>к</sub>", unit:"м", rule:"nonneg", hint:"0, если B<sub>м</sub> измерено между листвой."},
+      {id:"k1_er", label:"Неровность ряда <i>e</i><sub>ряд</sub>", unit:"м", rule:"nonneg", hint:"0, если робот едет относительно видимого ряда."},
+      {id:"k1_b", head:"Робот", label:"Ширина робота <i>b</i>", unit:"м", rule:"pos"},
+      {id:"k1_Lp", label:"От base_link до дальнего угла <i>L</i><sub>п</sub>", unit:"м", rule:"pos"},
+      {id:"k1_s", head:"Требования", label:"Запас до листвы <i>s</i>", unit:"м", rule:"nonneg"},
+      {id:"k1_k", label:"Коэффициент охвата <i>k</i>", unit:"", rule:"pos", hint:"k = 2 — выход за границу 2,3 % времени в одну сторону, k = 3 — 0,13 %."},
+      {id:"k1_q", label:"Доля бюджета на курс <i>q</i>", unit:"%", rule:"pct0"},
+      {id:"k1_my", head:"Проверяемый метод", label:"СКО бокового положения <i>σ</i><sub>y,м</sub>", unit:"м", rule:"nonneg"},
+      {id:"k1_mpsi", label:"СКО курса <i>σ</i><sub>ψ,м</sub>", unit:"°", rule:"nonneg"}
+    ],
+    pos: [
+      {id:"p_B", head:"Среда и робот", label:"Ширина междурядья <i>B</i><sub>м</sub>", unit:"м", rule:"pos"},
+      {id:"p_w", label:"Ширина полосы листвы <i>w</i><sub>к</sub>", unit:"м", rule:"nonneg"},
+      {id:"p_b", label:"Ширина робота <i>b</i>", unit:"м", rule:"pos"},
+      {id:"p_Lp", label:"От base_link до дальнего угла <i>L</i><sub>п</sub>", unit:"м", rule:"pos"},
+      {id:"p_v", label:"Максимальная скорость <i>v</i>", unit:"км/ч", rule:"pos"},
+      {id:"p_s", head:"Требования", label:"Запас до листвы <i>s</i>", unit:"м", rule:"nonneg"},
+      {id:"p_k", label:"Коэффициент охвата <i>k</i>", unit:"", rule:"pos"},
+      {id:"p_dpsi", head:"Ошибки", label:"Предельная ошибка курса <i>Δψ</i>", unit:"°", rule:"deg90"},
+      {id:"p_str", label:"СКО опорной траектории <i>σ</i><sub>тр</sub>", unit:"м", rule:"nonneg"},
+      {id:"p_sup", label:"СКО ошибки регулятора <i>σ</i><sub>упр</sub>", unit:"м", rule:"nonneg"},
+      {id:"p_dest", label:"Ошибка оценки курса без коррекции <i>δψ</i><sub>оц</sub>", unit:"°", rule:"deg90"}
+    ],
+    traj: [
+      {id:"t_e", head:"Регулятор", label:"Исправляемое смещение <i>e</i>", unit:"м", rule:"nonneg"},
+      {id:"t_Ld", label:"Расстояние упреждения <i>L</i><sub>d</sub>", unit:"м", rule:"pos"},
+      {id:"t_sl", label:"Шум позиционирования <i>σ</i><sub>лок</sub>", unit:"м", rule:"nonneg"},
+      {id:"t_src", head:"Оценка курса", label:"Источник курса в системе", options:[["imu","IMU (гироскоп)"],["odo","Гусеничная одометрия"],["gnss","GNSS с двумя антеннами"],["vslam","VSLAM по ряду"]]},
+      {id:"t_bg", label:"IMU: смещение нуля <i>b</i><sub>g</sub>", unit:"°/ч", rule:"nonneg"},
+      {id:"t_arw", label:"IMU: случайное блуждание ARW", unit:"°/√ч", rule:"nonneg"},
+      {id:"t_km", label:"IMU: ошибка масштаба <i>k</i><sub>м</sub>", unit:"%", rule:"nonneg"},
+      {id:"t_T", label:"IMU: время без абсолютной поправки <i>T</i>", unit:"с", rule:"nonneg"},
+      {id:"t_turn", label:"IMU: угол поворота за это время <i>ψ</i><sub>пов</sub>", unit:"°", rule:"nonneg"},
+      {id:"t_de", label:"Одометрия: разница проскальзывания <i>Δε</i>", unit:"%", rule:"nonneg"},
+      {id:"t_Be", label:"Одометрия: эффективная колея <i>B</i><sub>эфф</sub>", unit:"м", rule:"pos"},
+      {id:"t_S", label:"Одометрия: путь без поправки <i>S</i>", unit:"м", rule:"nonneg"},
+      {id:"t_sr", label:"GNSS: относительная ошибка антенн <i>σ</i><sub>отн</sub>", unit:"мм", rule:"nonneg"},
+      {id:"t_D", label:"GNSS: разнос антенн <i>D</i>", unit:"м", rule:"pos"},
+      {id:"t_sy", label:"VSLAM: разброс точек ряда <i>σ</i><sub>y,ряд</sub>", unit:"м", rule:"nonneg"},
+      {id:"t_N", label:"VSLAM: число точек ряда <i>N</i>", unit:"шт.", rule:"int1"},
+      {id:"t_l", label:"VSLAM: длина видимого участка <i>ℓ</i>", unit:"м", rule:"pos"},
+      {id:"t_path", head:"Ряд", label:"Траектория задана", options:[["row","по видимому ряду"],["map","прямой линией по карте"]]},
+      {id:"t_sp", label:"Разброс столбов поперёк ряда <i>σ</i><sub>ст</sub>", unit:"м", rule:"nonneg"},
+      {id:"t_dp", label:"Шаг столбов <i>d</i><sub>ст</sub>", unit:"м", rule:"pos"},
+      {id:"t_Lp", head:"Робот", label:"От base_link до дальнего угла <i>L</i><sub>п</sub>", unit:"м", rule:"pos"}
+    ],
+    odo: [
+      {id:"o_e", head:"Допуск", label:"Допустимая боковая ошибка <i>e</i><sub>доп</sub>", unit:"м", rule:"pos", hint:"Предельный сдвиг центра, например e<sub>max</sub> с листа 2 при Δψ = 0."},
+      {id:"o_S", label:"Самый длинный участок без поправки <i>S</i>", unit:"м", rule:"pos", hint:"Ряд, разворот между рядами, путь от базы."},
+      {id:"o_eps", head:"Одометрия", label:"Поступательный дрейф <i>ε</i>", unit:"%", rule:"nonneg", hint:"Как в статьях: средняя ошибка по отрезкам 100–800 м (метрика KITTI)."},
+      {id:"o_r", label:"Дрейф курса <i>r</i>", unit:"°/100 м", rule:"nonneg"},
+      {id:"o_src", head:"Обнуление", label:"Начальный курс после обнуления", options:[["markers","по двум маркерам"],["manual","задаю сам"]]},
+      {id:"o_sp", label:"Ошибка положения по маркеру <i>σ</i><sub>поз</sub>", unit:"мм", rule:"nonneg"},
+      {id:"o_D", label:"Расстояние между маркерами <i>D</i>", unit:"м", rule:"pos"},
+      {id:"o_dpsi", label:"Начальная ошибка курса <i>δψ</i><sub>0</sub>, если задаю сам", unit:"°", rule:"deg90"},
+      {id:"o_v", head:"Работа", label:"Скорость <i>v</i>", unit:"км/ч", rule:"pos"},
+      {id:"o_day", label:"Пробег за день <i>L</i><sub>день</sub>", unit:"км", rule:"pos"}
+    ]
+  };
+  const RULES = {
+    pos:   [v => v > 0, "Введите число больше 0"],
+    nonneg:[v => v >= 0, "Введите число не меньше 0"],
+    int1:  [v => Number.isInteger(v) && v >= 1, "Введите целое число от 1"],
+    pct0:  [v => v >= 0 && v < 100, "Введите число от 0 до 99"],
+    deg90: [v => v >= 0 && v < 90, "Введите угол от 0 до 90°"]
+  };
+  const ALL = Object.values(FIELDS).flat();
+  const KEY = "dgrape-pos-v1";
+  const S = Object.assign({}, DEFAULTS);
+  const raw = {};
+  let tab = "over";
+  const TABS = ["over", "crit", "pos", "traj", "odo"];
+
+  function load(){ try { const d = JSON.parse(localStorage.getItem(KEY) || "null"); if (d && d.raw) { Object.assign(raw, d.raw); if (d.tab) tab = d.tab; } } catch(e) {} }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify({raw, tab})); } catch(e) {} }
+  const num = t => { const s = String(t).trim().replace(",", "."); return s === "" ? NaN : Number(s); };
+  const F = (x, d) => Number.isFinite(x) ? x.toFixed(d).replace(".", ",").replace("-", "−") : "—";
+  const mm = x => F(x * 1000, 0);
+  const deg = x => F(x / Math.PI * 180, 2);
+  const $ = q => document.querySelector(q);
+  const $$ = q => Array.from(document.querySelectorAll(q));
+
+  function buildFields(){
+    for (const [group, list] of Object.entries(FIELDS)) {
+      const box = $(`[data-fields="${group}"]`);
+      for (const f of list) {
+        if (f.head) { const hd = document.createElement("p"); hd.className = "grp"; hd.textContent = f.head; box.appendChild(hd); }
+        const div = document.createElement("div");
+        div.className = "fld";
+        if (f.options) {
+          div.innerHTML = `<label for="in-${f.id}">${f.label}</label><div class="ctl"><select id="in-${f.id}">` + f.options.map(([v, n]) => `<option value="${v}">${n}</option>`).join("") + `</select></div>`;
+          box.appendChild(div);
+          const sel = div.querySelector("select");
+          sel.value = raw[f.id] !== undefined ? raw[f.id] : DEFAULTS[f.id];
+          S[f.id] = sel.value; raw[f.id] = sel.value;
+          sel.addEventListener("change", () => { S[f.id] = sel.value; raw[f.id] = sel.value; render(); save(); });
+          continue;
+        }
+        div.innerHTML = `<label for="in-${f.id}">${f.label}</label>` +
+          `<div class="ctl"><input id="in-${f.id}" type="text" inputmode="decimal" autocomplete="off" aria-describedby="err-${f.id}"><span class="unit">${f.unit}</span></div>` +
+          (f.hint ? `<p class="hint">${f.hint}</p>` : "") + `<p class="err" id="err-${f.id}" hidden></p>`;
+        box.appendChild(div);
+        const inp = div.querySelector("input");
+        const start = raw[f.id] !== undefined ? raw[f.id] : String(DEFAULTS[f.id]).replace(".", ",");
+        inp.value = start;
+        inp.addEventListener("input", () => { setField(f, inp.value); render(); save(); });
+        setField(f, start);
+      }
+    }
+    $$(".fields > .grp:first-child").forEach(el => { el.style.borderTop = "0"; el.style.paddingTop = "0"; el.style.marginTop = "0"; });
+  }
+  function setField(f, text){
+    raw[f.id] = text;
+    const v = num(text), [ok, msg] = RULES[f.rule], good = Number.isFinite(v) && ok(v);
+    S[f.id] = good ? v : NaN;
+    const inp = $(`#in-${f.id}`), err = $(`#err-${f.id}`);
+    inp.setAttribute("aria-invalid", good ? "false" : "true");
+    err.hidden = good; err.textContent = good ? "" : msg;
+  }
+  function setVal(id, v){
+    const f = ALL.find(x => x.id === id);
+    if (f.options) { $(`#in-${id}`).value = v; S[id] = v; raw[id] = v; return; }
+    const t = String(v).replace(".", ","); $(`#in-${id}`).value = t; setField(f, t);
+  }
+  function selectTab(name, focus){
+    tab = name;
+    for (const t of TABS) {
+      const b = $(`#t-${t}`), p = $(`#p-${t}`), on = t === name;
+      b.setAttribute("aria-selected", on ? "true" : "false"); b.tabIndex = on ? 0 : -1; p.hidden = !on;
+      if (on && focus) b.focus();
+    }
+    save();
+  }
+  const sub = (k, html) => { const el = $(`[data-sub="${k}"]`); if (el) el.innerHTML = html; };
+  const out = (k, text) => $$(`[data-out="${k}"]`).forEach(el => el.textContent = text);
+  const status = (k, state, text) => { const el = $(`[data-status="${k}"]`); if (!el) return; el.className = "st " + (state || ""); el.textContent = text || ""; el.hidden = !text; };
+  const cell = (k, state, html) => { const el = $(`[data-cell="${k}"]`); el.className = state || ""; el.innerHTML = html; };
+
+  function chartSVG(s, r){
+    if (!r.ok || !Number.isFinite(r.R)) return `<p class="note">Нет допустимой области: проверьте условия.</p>`;
+    const W = 640, H = 300, L = 62, Rm = 20, T = 16, B = 46;
+    const pw = W - L - Rm, ph = H - T - B;
+    const xMaxDeg = Math.max(1, Math.ceil(Math.max(r.psiMax, r.mpsi * 1.15, r.psiDes * 1.15) / Math.PI * 180 * 1.1));
+    const yMax = Math.max(r.R, s.k1_my * 1.15) * 1.15 * 1000;
+    const X = d => L + d / xMaxDeg * pw, Y = v => T + ph - v / yMax * ph;
+    const pts = [];
+    const n = 60, pmax = r.psiMax / Math.PI * 180;
+    for (let i = 0; i <= n; i++) { const d = pmax * i / n; const t = r.R ** 2 - (s.k1_Lp * d * Math.PI / 180) ** 2; pts.push([d, t > 0 ? Math.sqrt(t) * 1000 : 0]); }
+    const line = pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(" ");
+    const area = `${line} L${X(pmax).toFixed(1)} ${Y(0).toFixed(1)} L${X(0).toFixed(1)} ${Y(0).toFixed(1)} Z`;
+    const xt = [], step = xMaxDeg <= 6 ? 1 : xMaxDeg <= 12 ? 2 : 5;
+    for (let d = 0; d <= xMaxDeg; d += step) xt.push(d);
+    const ystep = yMax > 300 ? 100 : yMax > 120 ? 50 : 20, yt = [];
+    for (let v = 0; v <= yMax; v += ystep) yt.push(v);
+    const md = s.k1_mpsi, my = s.k1_my * 1000;
+    const dd = r.psiDes / Math.PI * 180, dy = r.yDes * 1000;
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Граница допустимой области: допустимое СКО положения в зависимости от СКО курса">
+      ${yt.map(v => `<line x1="${L}" y1="${Y(v)}" x2="${W - Rm}" y2="${Y(v)}" style="stroke:var(--rule-2);stroke-width:1"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" class="fs" style="fill:var(--ink-2)">${F(v, 0)}</text>`).join("")}
+      ${xt.map(d => `<text x="${X(d)}" y="${H - B + 18}" text-anchor="middle" class="fs" style="fill:var(--ink-2)">${d}°</text>`).join("")}
+      <path d="${area}" style="fill:var(--ok-f)"/>
+      <path d="${line}" style="fill:none;stroke:var(--vine);stroke-width:2"/>
+      <line x1="${L}" y1="${T + ph}" x2="${W - Rm}" y2="${T + ph}" style="stroke:var(--ink-2);stroke-width:1"/>
+      <line x1="${L}" y1="${T}" x2="${L}" y2="${T + ph}" style="stroke:var(--ink-2);stroke-width:1"/>
+      <text x="${L + pw / 2}" y="${H - 8}" text-anchor="middle" class="fs" style="fill:var(--ink-2)">СКО ошибки курса σ_ψ</text>
+      <text x="14" y="${T + 4}" class="fs" style="fill:var(--ink-2)">σ_y, мм</text>
+      <path d="M${X(dd)} ${Y(dy) - 7} L${X(dd) + 7} ${Y(dy)} L${X(dd)} ${Y(dy) + 7} L${X(dd) - 7} ${Y(dy)} Z" style="fill:var(--blue);stroke:var(--sheet);stroke-width:1.5"/>
+      <circle cx="${X(Math.min(md, xMaxDeg))}" cy="${Y(Math.min(my, yMax))}" r="6" style="fill:${r.methodOk ? "var(--vine)" : "var(--red)"};stroke:var(--sheet);stroke-width:1.5"/>
+    </svg>`;
+  }
+
+  function renderCrit(){
+    const s = S, r = computeCrit(s);
+    sub("c_R", `<i>c</i><sub>0</sub> = (${F(s.k1_B,2)} − ${F(s.k1_w,2)} − ${F(s.k1_b,2)}) / 2 = <b>${F(r.c0,3)} м</b>,&ensp; <i>R</i> = (${F(r.c0,3)} − ${F(s.k1_s,3)} − ${F(s.k1_er,3)}) / ${F(s.k1_k,1)} = <b>${F(r.R,4)} м</b>`);
+    out("c_R", r.ok ? `${mm(r.R)} мм` : "нет допуска");
+    status("c_R", r.ok ? "" : "bad", r.ok ? "" : "Зазора не хватает: c₀ меньше запаса и неровности ряда");
+    sub("c_k1", `<i>σ</i><sub>y,max</sub> при σ<sub>ψ</sub> = 0 равно <b>${mm(r.R)} мм</b>,&ensp; <i>σ</i><sub>ψ,max</sub> = ${F(r.R,4)} / ${F(s.k1_Lp,2)} = <b>${deg(r.psiMax)}°</b> при σ<sub>y</sub> = 0`);
+    sub("c_chart", chartSVG(s, r));
+    const q = s.k1_q / 100;
+    sub("c_k2", `<i>σ</i><sub>ψ,доп</sub> = √${F(q,2)} · ${F(r.R,4)} / ${F(s.k1_Lp,2)} = <b>${deg(r.psiDes)}°</b>,&ensp; <i>σ</i><sub>y,доп</sub> = √${F(1 - q,2)} · ${F(r.R,4)} = <b>${mm(r.yDes)} мм</b>`);
+    out("c_yDes", r.ok ? `${mm(r.yDes)} мм` : "—"); out("c_psiDes", r.ok ? `${deg(r.psiDes)}°` : "—");
+    sub("c_k3", `<i>V</i> = √(${F(s.k1_my,3)}<sup>2</sup> + (${F(s.k1_Lp,2)} · ${F(r.mpsi,4)})<sup>2</sup>) = <b>${F(r.V,4)} м</b> при допустимых ${F(r.R,4)} м;&ensp; при таком курсе положение можно до <b>${mm(r.yAtMethod)} мм</b>`);
+    out("c_V", `${mm(r.V)} мм`);
+    status("c_k3", r.ok && r.methodOk ? "ok" : "bad", !r.ok ? "нет допустимой области" : r.methodOk ? `метод подходит, запас ${F(r.margin * 100, 0)} %` : `метод не подходит: превышение ${F(-r.margin * 100, 0)} %`);
+    sub("c_det", r.det.map(x => `<tr><td>${F(x.d,0)}°</td><td class="${x.y > 0 ? "" : "bad"}">${x.y > 0 ? mm(x.y) : "нет допуска"}</td></tr>`).join(""));
+    cell("crit", r.ok ? "" : "bad", r.ok ? `σ_y ≤ ${mm(r.yDes)} мм, σ_ψ ≤ ${deg(r.psiDes)}°<small>R = ${mm(r.R)} мм, курсу отдано ${F(s.k1_q,0)} % бюджета</small>` : `нет допуска<small>см. лист 1</small>`);
+    return r;
+  }
+
+  function renderPos(){
+    const s = S, r = computePos(s);
+    sub("p_1", `<i>c</i><sub>0</sub> = (${F(s.p_B,2)} − ${F(s.p_w,2)} − ${F(s.p_b,2)}) / 2 = <b>${F(r.c0,3)} м</b>,&ensp; <i>Δ</i><sub>ψ</sub> = ${F(s.p_Lp,2)} · sin ${F(s.p_dpsi,1)}° − ${F(s.p_b/2,3)} · (1 − cos ${F(s.p_dpsi,1)}°) = <b>${F(r.D*1000,1)} мм</b>`);
+    sub("p_2", `<i>e</i><sub>max</sub> = ${F(r.c0,3)} − ${F(s.p_s,3)} − ${F(r.D,4)} = <b>${F(r.emax,4)} м</b>`);
+    out("p_emax", r.emax > 0 ? `${mm(r.emax)} мм` : "нет допуска");
+    status("p_emax", r.emax > 0 ? "" : "bad", r.emax > 0 ? "" : "Зазора не хватает даже без ошибок положения");
+    sub("p_3", `<i>σ</i><sub>e,доп</sub> = ${F(r.emax,4)} / ${F(s.p_k,1)} = <b>${F(r.se,4)} м</b>,&ensp; <i>σ</i><sub>лок,доп</sub> = √(${F(r.se,4)}<sup>2</sup> − ${F(s.p_str,3)}<sup>2</sup> − ${F(s.p_sup,3)}<sup>2</sup>) = <b>${Number.isFinite(r.sl) ? F(r.sl,4) + " м" : "—"}</b>`);
+    out("p_sl", Number.isFinite(r.sl) ? `${mm(r.sl)} мм` : "нет допуска");
+    status("p_sl", Number.isFinite(r.sl) ? "info" : "bad", Number.isFinite(r.sl) ? `${F(s.p_k,0)}σ = ${mm(s.p_k * r.sl)} мм` : "Траектория и регулятор уже съели весь допуск");
+    sub("p_4", r.dest > 0 ? `<i>S</i><sub>кр</sub> = ${F(r.emax,4)} / sin ${F(s.p_dest,1)}° = <b>${F(r.Skr,1)} м</b>,&ensp; <i>v</i> = ${F(s.p_v,2)} / 3,6 = ${F(r.v,3)} м/с,&ensp; <i>t</i><sub>кр</sub> = <b>${F(r.tkr,1)} с</b>` : `При δψ<sub>оц</sub> = 0 робот не уходит вбок: путь без коррекции не ограничен`);
+    out("p_Skr", r.dest > 0 ? `${F(r.Skr,1)} м` : "∞"); out("p_tkr", r.dest > 0 ? `${F(r.tkr,1)} с` : "∞");
+    sub("p_table", r.table.map(x => `<tr${x.d === s.p_dpsi ? ' class="cur"' : ""}><td>${F(x.d,1)}°</td><td>${F(x.D*1000,0)}</td><td>${x.emax > 0 ? mm(x.emax) : "—"}</td><td>${x.emax > 0 ? mm(x.se) : "—"}</td><td class="${Number.isFinite(x.sl) ? "" : "bad"}">${Number.isFinite(x.sl) ? mm(x.sl) : "нет допуска"}</td><td>${Number.isFinite(x.sl) ? mm(s.p_k * x.sl) : "—"}</td></tr>`).join(""));
+    cell("pos", Number.isFinite(r.sl) ? "" : "bad", Number.isFinite(r.sl) ? `e_max = ${mm(r.emax)} мм<small>σ_лок,доп = ${mm(r.sl)} мм при Δψ = ${F(s.p_dpsi,1)}°</small>` : `нет допуска<small>см. лист 2</small>`);
+  }
+
+  function renderTraj(crit){
+    const s = S, r = computeTraj(s);
+    sub("t_1", `<i>ψ</i><sub>упр</sub> ≈ arctg(${F(s.t_e,3)} / ${F(s.t_Ld,2)}) = <b>${F(r.upMax,2)}°</b> — разовый поворот при исправлении смещения;&ensp; <i>σ</i><sub>ψ,упр</sub> ≈ ${F(s.t_sl,3)} / ${F(s.t_Ld,2)} = <b>${F(r.upSig,2)}°</b> — колебания от шума позиционирования`);
+    sub("t_2", `<i>δψ</i><sub>IMU</sub> = ${F(s.t_bg,1)}·${F(s.t_T,0)}/3600 + ${F(s.t_arw,2)}·√(${F(s.t_T,0)}/3600) + ${F(s.t_km,2)} %·${F(s.t_turn,0)}° = ${F(r.imuBias,2)} + ${F(r.imuArw,2)} + ${F(r.imuScale,2)} = <b>${F(r.imu,2)}°</b>`);
+    sub("t_3", `<i>δψ</i><sub>одом</sub> = (${F(s.t_de,2)} % / ${F(s.t_Be,2)}) · ${F(s.t_S,1)} = ${F(r.odoRate,3)}°/м · ${F(s.t_S,1)} м = <b>${F(r.odo,2)}°</b>`);
+    sub("t_4", `<i>σ</i><sub>ψ,GNSS</sub> = ${F(s.t_sr,2)} мм / ${F(s.t_D,2)} м = <b>${F(r.gnss,3)}°</b>`);
+    sub("t_5", `<i>σ</i><sub>ψ,VSLAM</sub> = ${F(s.t_sy,3)} · 3,464 / (√${F(s.t_N,0)} · ${F(s.t_l,2)}) = <b>${F(r.vslam,3)}°</b>`);
+    sub("t_6", `<i>δψ</i><sub>ряд</sub> = 1,414 · ${F(s.t_sp,3)} / ${F(s.t_dp,2)} = <b>${F(r.row,3)}°</b>`);
+    for (const k of ["imu", "odo", "gnss", "vslam"]) status("src_" + k, s.t_src === k ? "ok" : "", s.t_src === k ? "используется как источник курса" : "");
+    status("t_row", s.t_path === "map" ? "ok" : "info", s.t_path === "map" ? "учитывается: траектория задана прямой" : "не учитывается: робот едет по видимому ряду");
+    sub("t_sum", `<i>σ</i><sub>Δψ</sub> = √(${F(r.upSig,2)}<sup>2</sup> + ${F(r.est,2)}<sup>2</sup> + ${F(r.rowUsed,2)}<sup>2</sup>) = <b>${F(r.total,2)}°</b>,&ensp; <i>L</i><sub>п</sub> · <i>σ</i><sub>Δψ</sub> = ${F(s.t_Lp,2)} · ${F(r.total * Math.PI / 180,4)} = <b>${F(r.protr * 1000,1)} мм</b>`);
+    out("t_total", `${F(r.total,2)}°`);
+    status("t_dom", "info", `больше всего даёт: ${r.dominant}`);
+    const lim = crit && crit.ok ? crit.psiDes / Math.PI * 180 : NaN;
+    const okT = Number.isFinite(lim) && r.total <= lim;
+    cell("traj", Number.isFinite(lim) ? (okT ? "ok" : "bad") : "", `${F(r.total,2)}°<small>${Number.isFinite(lim) ? (okT ? "в допуске листа 1" : "больше допуска листа 1") + ` (σ_ψ,доп = ${F(lim,2)}°)` : "сравнение с листом 1 недоступно"}</small>`);
+  }
+
+  function renderOdo(){
+    const s = S, r = computeOdo(s);
+    const dpsiDeg = r.dpsi0 / Math.PI * 180;
+    sub("o_1", s.o_src === "markers"
+      ? `<i>δψ</i><sub>0</sub> = 1,414 · ${F(s.o_sp,1)} мм / ${F(s.o_D,2)} м = <b>${F(dpsiDeg,3)}°</b>,&ensp; <i>S</i><sub>0</sub> = ${F(s.o_e,3)} / tg ${F(dpsiDeg,3)}° = <b>${Number.isFinite(r.S0) ? F(r.S0,1) + " м" : "∞"}</b>`
+      : `<i>δψ</i><sub>0</sub> задана вручную: <b>${F(dpsiDeg,3)}°</b>,&ensp; <i>S</i><sub>0</sub> = ${F(s.o_e,3)} / tg ${F(dpsiDeg,3)}° = <b>${Number.isFinite(r.S0) ? F(r.S0,1) + " м" : "∞"}</b>`);
+    out("o_dpsi0", `${F(dpsiDeg,2)}°`); out("o_S0", Number.isFinite(r.S0) ? `${F(r.S0,1)} м` : "∞");
+    sub("o_2", `<i>ε</i><sub>доп</sub> = ${F(s.o_e,3)} / ${F(s.o_S,0)} = <b>${F(r.epsDop,4)} %</b>,&ensp; <i>r</i><sub>доп</sub> = 2 · (${F(s.o_e,3)} − ${F(r.dpsi0,5)} · ${F(s.o_S,0)}) / ${F(s.o_S,0)}<sup>2</sup> = <b>${Number.isFinite(r.rDopDeg) ? F(r.rDopDeg,3) + "°/100 м" : "нет допуска"}</b>`);
+    out("o_epsDop", `${F(r.epsDop,3)} %`);
+    out("o_rDop", Number.isFinite(r.rDopDeg) ? `${F(r.rDopDeg,3)}°/100 м` : "нет допуска");
+    status("o_rDop", Number.isFinite(r.rDopDeg) ? "" : "bad", Number.isFinite(r.rDopDeg) ? "" : `начальная ошибка курса одна съедает допуск уже на ${F(r.S0,1)} м`);
+    sub("o_3", `<i>S</i><sub>ε</sub> = ${F(s.o_e,3)} / ${F(s.o_eps/100,4)} = <b>${Number.isFinite(r.Seps) ? F(r.Seps,1) + " м" : "∞"}</b>,&ensp; <i>S</i><sub>ψ</sub> = <b>${Number.isFinite(r.Spsi) ? F(r.Spsi,1) + " м" : "∞"}</b> при r = ${F(r.rm,7)} рад/м`);
+    out("o_Smax", Number.isFinite(r.Smax) ? `${F(r.Smax,1)} м` : "∞");
+    status("o_lim", "info", Number.isFinite(r.Smax) ? `ограничивает ${r.lim}` : "дрейфа нет");
+    sub("o_4", `${F(s.o_eps,2)} % · ${F(s.o_S,0)} = <b>${F(r.eEps,3)} м</b>;&ensp; ${F(r.dpsi0,5)} · ${F(s.o_S,0)} + 0,5 · ${F(r.rm,7)} · ${F(s.o_S,0)}<sup>2</sup> = <b>${F(r.ePsi,3)} м</b>;&ensp; допуск ${F(s.o_e,3)} м`);
+    status("o_ok", r.ok ? "ok" : "bad", r.ok ? `метод выдерживает участок ${F(s.o_S,0)} м` : `метод не выдерживает участок ${F(s.o_S,0)} м: нужна поправка не реже чем через ${F(r.Smax,1)} м`);
+    sub("o_5", `<i>v</i> = ${F(s.o_v,2)} / 3,6 = ${F(r.v,3)} м/с,&ensp; <i>t</i><sub>max</sub> = ${F(r.Smax,1)} / ${F(r.v,3)} = <b>${F(r.tmax,1)} с</b>,&ensp; <i>N</i><sub>день</sub> = ${F(s.o_day * 1000,0)} / ${F(r.Smax,1)} ≈ <b>${r.Nday}</b>`);
+    out("o_tmax", Number.isFinite(r.tmax) ? `${F(r.tmax,1)} с` : "∞"); out("o_N", Number.isFinite(r.Smax) ? `${r.Nday}` : "—");
+    sub("o_table", r.table.map(x => `<tr${x.S === s.o_S ? ' class="cur"' : ""}><td>${x.S >= 1000 ? F(x.S / 1000,0) + " км" : F(x.S,0) + " м"}</td><td>${F(x.eps,4)}</td><td class="${Number.isFinite(x.rd) ? "" : "bad"}">${Number.isFinite(x.rd) ? F(x.rd,3) : "нет допуска"}</td><td class="${x.ok ? "ok" : "bad"} note-c">${x.ok ? "да" : "нет"}</td></tr>`).join(""));
+    cell("odo", r.ok ? "ok" : "bad", `S_max = ${Number.isFinite(r.Smax) ? F(r.Smax,1) + " м" : "∞"}<small>ограничивает ${r.lim}; поправка нужна ≈ ${r.Nday} раз за день</small>`);
+  }
+
+  function render(){ const c = renderCrit(); renderPos(); renderTraj(c); renderOdo(); }
+
+  load(); buildFields();
+  TABS.forEach((t, i) => {
+    const b = $(`#t-${t}`);
+    b.addEventListener("click", () => selectTab(t));
+    b.addEventListener("keydown", e => {
+      if (e.key === "ArrowRight") selectTab(TABS[(i + 1) % TABS.length], true);
+      if (e.key === "ArrowLeft") selectTab(TABS[(i + TABS.length - 1) % TABS.length], true);
+    });
+  });
+  $$("[data-reset]").forEach(btn => btn.addEventListener("click", () => {
+    for (const f of FIELDS[btn.dataset.reset]) setVal(f.id, DEFAULTS[f.id]);
+    render(); save();
+  }));
+  selectTab(TABS.includes(tab) ? tab : "over");
+  render();
+})();
+</script>
+</body>
+</html>

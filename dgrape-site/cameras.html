@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D-Grape: частоты сенсоров и базис стереопар</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap&subset=cyrillic" rel="stylesheet">
+<style>
+:root{
+  --paper:#E9EDEA;--sheet:#FBFCFA;--ink:#1C2226;--ink-2:#55606A;--rule:#A9B2B6;--rule-2:#D6DCDE;
+  --blue:#1A4BB0;--blue-bg:#E8EEFA;--vine:#2C6A31;--vine-bg:#E0EDDB;--red:#A3312A;--red-bg:#F5DFDB;--amber:#7A5100;--amber-bg:#F5E8C8;
+  --sans:"PT Sans","Segoe UI",Roboto,Arial,sans-serif;
+  --serif:"STIX Two Text","Cambria Math",Cambria,"Times New Roman",serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#101416;--sheet:#182024;--ink:#E3E8EA;--ink-2:#A3AEB4;--rule:#4A565C;--rule-2:#2E393E;
+    --blue:#9DBBFF;--blue-bg:#1E2A44;--vine:#93CD8C;--vine-bg:#1D3220;--red:#F2958C;--red-bg:#3D211D;--amber:#E9C46F;--amber-bg:#3A2F15;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101416;--sheet:#182024;--ink:#E3E8EA;--ink-2:#A3AEB4;--rule:#4A565C;--rule-2:#2E393E;
+  --blue:#9DBBFF;--blue-bg:#1E2A44;--vine:#93CD8C;--vine-bg:#1D3220;--red:#F2958C;--red-bg:#3D211D;--amber:#E9C46F;--amber-bg:#3A2F15;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 var(--sans);font-variant-numeric:tabular-nums}
+.page{position:relative;max-width:1180px;margin:20px auto;background:var(--sheet);border:1px solid var(--rule);padding:30px 34px 34px 50px}
+.page::before{content:"";position:absolute;inset:10px 10px 10px 26px;border:2px solid var(--ink);pointer-events:none}
+.page>*{position:relative}
+h1,h2,h3{font-family:var(--sans);font-weight:700;margin:0;line-height:1.2}
+h1{font-size:1.75rem;letter-spacing:-.01em}
+h2{font-size:1.3rem}
+h3{font-size:1.02rem}
+p{margin:0}
+sub,sup{font-size:.7em;line-height:0}
+.head{display:flex;gap:28px;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:2px solid var(--ink)}
+.head .sub-t{color:var(--ink-2);margin-top:8px;max-width:58ch}
+.stamp{border-collapse:collapse;border:2px solid var(--ink);min-width:340px;flex:0 0 auto}
+.stamp th,.stamp td{border:1px solid var(--ink);padding:6px 10px;text-align:left;vertical-align:top}
+.stamp th{font-weight:400;color:var(--ink-2);font-size:.88rem;width:11.5em}
+.stamp td{font-weight:700}
+.stamp td.ok{color:var(--vine)} .stamp td.warn{color:var(--amber)} .stamp td.bad{color:var(--red)}
+.stamp td small{display:block;font-weight:400;color:var(--ink-2);font-size:.82rem}
+.common{padding:22px 0 24px;border-bottom:1px solid var(--rule)}
+.common-grid{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:36px;margin-top:14px}
+.fields{display:grid;gap:12px}
+.fld label{display:block;color:var(--ink-2);font-size:.9rem;margin-bottom:2px}
+.ctl{display:flex;align-items:baseline;gap:8px}
+.ctl input,.ctl select{font:1.05rem var(--sans);font-variant-numeric:tabular-nums;color:var(--blue);background:var(--blue-bg);border:0;border-bottom:1.5px solid var(--rule);padding:4px 8px;width:8em;text-align:right;border-radius:2px 2px 0 0}
+.ctl select{width:auto;text-align:left}
+.ctl input:focus-visible,.ctl select:focus-visible,button:focus-visible,input[type=radio]:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.ctl input[aria-invalid="true"]{border-bottom-color:var(--red)}
+.unit{color:var(--ink-2);font-size:.92rem}
+.hint{color:var(--ink-2);font-size:.82rem;margin-top:3px;max-width:42ch}
+.err{color:var(--red);font-size:.85rem;margin-top:3px}
+.row2{display:flex;gap:16px;flex-wrap:wrap}
+.btn{font:.92rem var(--sans);color:var(--ink);background:transparent;border:1px solid var(--rule);padding:6px 12px;border-radius:3px;cursor:pointer}
+.btn:hover{border-color:var(--ink)}
+fieldset{border:0;padding:0;margin:0 0 4px}
+legend{color:var(--ink-2);font-size:.9rem;padding:0;margin-bottom:4px}
+.radio{display:flex;gap:16px;flex-wrap:wrap}
+.radio label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.radio input{accent-color:var(--blue)}
+.tabs{display:flex;gap:4px;margin-top:26px;border-bottom:2px solid var(--ink);overflow-x:auto}
+.tab{font:1rem var(--sans);color:var(--ink-2);background:transparent;border:1px solid transparent;border-bottom:0;padding:9px 14px 8px;cursor:pointer;white-space:nowrap;border-radius:3px 3px 0 0;margin-bottom:-2px}
+.tab b{color:var(--ink);font-weight:700;margin-right:6px}
+.tab[aria-selected="true"]{color:var(--ink);background:var(--sheet);border-color:var(--ink);border-width:2px 2px 0}
+.panel{padding-top:24px}
+.panel .lead{color:var(--ink-2);max-width:78ch;margin-top:8px}
+.sheet{display:grid;grid-template-columns:minmax(260px,320px) 1fr;gap:36px;margin-top:22px}
+.inputs h3,.calc>h3{margin-bottom:12px}
+.blk{display:grid;grid-template-columns:44px 1fr;gap:0 16px;padding:18px 0;border-top:1px solid var(--rule-2)}
+.blk:first-child{border-top:0;padding-top:0}
+.code{font:700 .95rem var(--sans);border:1.5px solid var(--ink);text-align:center;padding:3px 0;height:fit-content}
+.code.dim{border-color:var(--rule);color:var(--ink-2)}
+.blk h3{margin-bottom:6px}
+.why{color:var(--ink-2);max-width:72ch;font-size:.95rem}
+.fml,.subst{font-family:var(--serif);overflow-x:auto;padding:2px 0}
+.fml{font-size:1.18rem;margin-top:10px;line-height:2}
+.subst{font-size:1rem;color:var(--ink-2);margin-top:4px;line-height:1.8}
+.subst b{color:var(--ink);font-weight:600}
+.fml i,.subst i{font-style:italic}
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .12em;line-height:1.25}
+.fr>span:first-child{padding:0 .25em .08em}
+.fr>span:last-child{border-top:1px solid currentColor;padding:.08em .25em 0}
+.res{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline}
+.res .big{font-size:1.25rem;font-weight:700}
+.st{display:inline-block;padding:2px 9px;border-radius:3px;font-size:.88rem}
+.st.ok{color:var(--vine);background:var(--vine-bg)} .st.warn{color:var(--amber);background:var(--amber-bg)} .st.bad{color:var(--red);background:var(--red-bg)} .st.info{color:var(--ink-2);background:var(--rule-2)}
+.note{margin-top:8px;font-size:.92rem;color:var(--ink-2);max-width:72ch}
+.alert{margin-top:10px;padding:8px 12px;border-left:3px solid var(--red);background:var(--red-bg);color:var(--red);font-size:.92rem;border-radius:0}
+.alert.warn{border-color:var(--amber);background:var(--amber-bg);color:var(--amber)}
+.total{border-top:2px solid var(--ink)}
+.wide{margin-top:8px}
+.wide .blk{grid-template-columns:44px 1fr}
+.wide .why{max-width:90ch}
+table.t td.note-c,table.t th:last-child{text-align:left}
+.tbl-wrap{overflow-x:auto;margin-top:12px}
+table.t{border-collapse:collapse;width:100%;min-width:640px;font-size:.93rem}
+table.t th,table.t td{border:1px solid var(--rule-2);padding:6px 9px;text-align:right;vertical-align:top}
+table.t th{font-weight:400;color:var(--ink-2);background:transparent}
+table.t td:first-child,table.t th:first-child{text-align:left}
+table.t tr.cur td{background:var(--blue-bg)}
+table.t td.ok{color:var(--vine)} table.t td.bad{color:var(--red)} table.t td.dim{color:var(--ink-2)}
+.linklike{font:inherit;color:var(--blue);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.rec{margin-top:10px;font-size:.98rem}
+.grp{font-weight:700;margin-top:8px;padding-top:10px;border-top:1px solid var(--rule-2)}
+footer{margin-top:30px;padding-top:14px;border-top:1px solid var(--rule);color:var(--ink-2);font-size:.88rem;max-width:90ch}
+[hidden]{display:none!important}
+@media (max-width:860px){
+  .page{margin:0;border:0;padding:22px 18px 26px 26px}
+  .page::before{inset:6px 6px 6px 14px}
+  .head{flex-direction:column}
+  .stamp{min-width:0;width:100%}
+  .common-grid,.sheet{grid-template-columns:1fr;gap:24px}
+  .blk{grid-template-columns:38px 1fr;gap:0 12px}
+  h1{font-size:1.45rem}
+}
+
+.sitenav{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;margin:0 0 18px;font-size:.92rem}
+.sitenav a{color:var(--blue);text-decoration:none;border-bottom:1px solid transparent}
+.sitenav a:hover{border-bottom-color:currentColor}
+.sitenav a:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.sitenav a[aria-current="page"]{color:var(--ink);font-weight:700}
+.sitenav .home{margin-right:auto}
+</style>
+</head>
+<body>
+<div class="page">
+  <nav class="sitenav" aria-label="Разделы сайта"><a class="home" href="./">← Все расчёты</a><a href="cameras.html" aria-current="page">Камеры и базис стереопар</a><a href="positioning.html">Позиционирование и курс</a></nav>
+
+  <header class="head">
+    <div>
+      <h1>Частоты сенсоров и базис стереопар</h1>
+      <p class="sub-t">Робот-опрыскиватель D-Grape, расчёт к ВКР. У каждого листа свои исходные данные. Синие поля можно менять, всё пересчитывается сразу. Под каждой формулой показана подстановка текущих чисел.</p>
+    </div>
+    <table class="stamp" aria-label="Сводка результатов">
+      <tr><th>Лист 1. Карты глубины</th><td data-cell="depth"></td></tr>
+      <tr><th>Лист 2. Каждая камера</th><td data-cell="cam"></td></tr>
+      <tr><th>Лист 3. Базис пары</th><td data-cell="base"></td></tr>
+      <tr><th>Лист 4. Угол обзора</th><td data-cell="fov"></td></tr>
+    </table>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Листы расчёта">
+    <button class="tab" role="tab" id="t-depth" aria-controls="p-depth" aria-selected="true"><b>Лист 1</b>Частота карт глубины</button>
+    <button class="tab" role="tab" id="t-cam" aria-controls="p-cam" aria-selected="false" tabindex="-1"><b>Лист 2</b>Частота каждой камеры</button>
+    <button class="tab" role="tab" id="t-base" aria-controls="p-base" aria-selected="false" tabindex="-1"><b>Лист 3</b>Базис стереопары</button>
+    <button class="tab" role="tab" id="t-fov" aria-controls="p-fov" aria-selected="false" tabindex="-1"><b>Лист 4</b>Угол обзора камеры</button>
+  </div>
+
+  <section class="panel" id="p-depth" role="tabpanel" aria-labelledby="t-depth">
+    <h2>Лист 1. Частота карт глубины</h2>
+    <p class="lead">Карты глубины нужны, чтобы вовремя увидеть препятствие и остановиться. Требуемая частота — наибольшая из двух ситуаций: препятствие видно издалека (Г1) или появляется сбоку вблизи (Г2).</p>
+    <div class="sheet">
+      <div class="inputs">
+        <h3>Исходные данные</h3>
+        <div class="fields" data-fields="depth"></div>
+        <p style="margin-top:16px"><button type="button" class="btn" data-reset="depth">Вернуть исходные значения листа</button></p>
+      </div>
+      <div class="calc">
+        <div class="blk">
+          <div class="code dim">Г0</div>
+          <div>
+            <h3>Скорость, тормозной путь и суммарная задержка</h3>
+            <div class="fml"><i>v</i> = <span class="fr"><span><i>v</i><sub>км/ч</sub></span><span>3,6</span></span>,&ensp; <i>S</i><sub>торм</sub> = <span class="fr"><span><i>v</i><sup>2</sup></span><span>2<i>a</i></span></span>,&ensp; <i>τ</i><sub>Σ</sub> = <span class="fr"><span><i>τ</i><sub>обр</sub> + <i>τ</i><sub>реак</sub></span><span>1000</span></span></div>
+            <div class="subst" data-sub="d0"></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Г1</div>
+          <div>
+            <h3>Препятствие впереди: успеть остановиться</h3>
+            <p class="why">Худший случай по времени: препятствие стало видно сразу после кадра. Пока его подтверждают N кадров, пока считается глубина и реагирует привод, робот едет с полной скоростью. Затем он проходит тормозной путь и должен остановиться с запасом <i>s</i><sub>ост</sub>.</p>
+            <div class="fml"><i>d</i><sub>обн</sub> ≥ <i>v</i>·(<i>N</i>·<i>T</i> + <i>τ</i><sub>Σ</sub>) + <i>S</i><sub>торм</sub> + <i>s</i><sub>ост</sub> &ensp;⇒&ensp; <i>T</i><sub>Г1</sub> = <span class="fr"><span><span class="fr"><span><i>d</i><sub>обн</sub> − <i>s</i><sub>ост</sub> − <i>S</i><sub>торм</sub></span><span><i>v</i></span></span> − <i>τ</i><sub>Σ</sub></span><span><i>N</i></span></span>,&ensp; <i>f</i><sub>Г1</sub> = <span class="fr"><span>1</span><span><i>T</i><sub>Г1</sub></span></span></div>
+            <div class="subst" data-sub="g1"></div>
+            <div class="res"><span>f<sub>Г1</sub> = <span class="big" data-out="f_g1"></span></span><span class="st" data-status="g1"></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Г2</div>
+          <div>
+            <h3>Препятствие появляется сбоку вблизи</h3>
+            <p class="why">Например, человек выходит из-за куста. Передняя пара охватывает всю ширину робота только начиная с расстояния <i>d</i><sub>бок</sub>, где края полосы движения попадают в угол обзора. Ближе препятствие у края полосы в кадр не попадает.</p>
+            <div class="fml"><i>d</i><sub>бок</sub> = <span class="fr"><span><i>b</i> / 2</span><span>tg(HFOV / 2)</span></span>,&ensp; <i>T</i><sub>Г2</sub> = <span class="fr"><span><span class="fr"><span><i>d</i><sub>бок</sub> − <i>s</i><sub>ост</sub> − <i>S</i><sub>торм</sub></span><span><i>v</i></span></span> − <i>τ</i><sub>Σ</sub></span><span><i>N</i></span></span></div>
+            <div class="subst" data-sub="g2"></div>
+            <div class="res"><span>f<sub>Г2</sub> = <span class="big" data-out="f_g2"></span></span><span class="st" data-status="g2"></span></div>
+          </div>
+        </div>
+        <div class="blk total">
+          <div class="code">Σ</div>
+          <div>
+            <h3>Требуемая частота карт глубины</h3>
+            <div class="fml"><i>f</i><sub>глуб</sub> = <i>k</i><sub>зап</sub>·max(<i>f</i><sub>Г1</sub>; <i>f</i><sub>Г2</sub>)</div>
+            <div class="subst" data-sub="dsum"></div>
+            <div class="res"><span>f<sub>глуб</sub> = <span class="big" data-out="f_depth"></span></span><span class="st" data-status="depth"></span></div>
+            <p class="note">Если одометрия RTAB-Map работает в режиме RGB-D, то есть берёт кадр вместе с картой глубины, карты глубины должны приходить ещё и не реже частоты камер с листа 2.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-cam" role="tabpanel" aria-labelledby="t-cam" hidden>
+    <h2>Лист 2. Частота каждой камеры</h2>
+    <p class="lead">Камеры нужны для позиционирования: визуальная одометрия находит одни и те же признаки на соседних кадрах. Если за период между кадрами картинка сдвигается слишком сильно, трек теряется. Требуемая частота — наибольшая из четырёх ситуаций К1–К4.</p>
+    <div class="sheet">
+      <div class="inputs">
+        <h3>Исходные данные</h3>
+        <p class="grp" style="border-top:0;padding-top:0;margin-top:0">Камера</p>
+        <div class="fields">
+          <div class="fld">
+            <label for="preset">Разрешение</label>
+            <div class="ctl"><select id="preset"></select></div>
+          </div>
+          <div class="row2" data-fields="cam_res"></div>
+          <div class="fields" data-fields="cam_lens"></div>
+          <div class="fields" data-fields="cam_move"></div>
+          <p class="grp">Допуски</p>
+          <fieldset>
+            <legend>Допустимый сдвиг признаков задаю</legend>
+            <div class="radio">
+              <label><input type="radio" name="mode" value="pct"> в процентах кадра</label>
+              <label><input type="radio" name="mode" value="px"> в пикселях</label>
+            </div>
+          </fieldset>
+          <div class="fields" data-fields="cam_tol"></div>
+        </div>
+        <p style="margin-top:16px"><button type="button" class="btn" data-reset="cam">Вернуть исходные значения листа</button></p>
+      </div>
+      <div class="calc">
+        <div class="blk">
+          <div class="code dim">К0</div>
+          <div>
+            <h3>Камера: фокусное расстояние в пикселях и углы обзора</h3>
+            <p class="why">Изображение на матрице измеряется в пикселях, поэтому фокусное расстояние переводят в пиксели: делят на размер пикселя. При большем разрешении пиксель мельче, и <i>f</i><sub>x</sub> растёт. Угол обзора от разрешения не зависит.</p>
+            <div class="fml"><i>p</i><sub>пикс</sub> = <span class="fr"><span><i>l</i><sub>м</sub></span><span><i>W</i></span></span>,&ensp; <i>f</i><sub>x</sub> = <span class="fr"><span><i>f</i></span><span><i>p</i><sub>пикс</sub></span></span> = <span class="fr"><span><i>f</i>·<i>W</i></span><span><i>l</i><sub>м</sub></span></span>,&ensp; <i>f</i><sub>y</sub> = <i>f</i><sub>x</sub></div>
+            <div class="fml">HFOV = 2·arctg <span class="fr"><span><i>l</i><sub>м</sub></span><span>2<i>f</i></span></span>,&ensp; VFOV = 2·arctg <span class="fr"><span><i>H</i></span><span>2·<i>f</i><sub>x</sub></span></span>,&ensp; <i>v</i> = <span class="fr"><span><i>v</i><sub>км/ч</sub></span><span>3,6</span></span></div>
+            <div class="subst" data-sub="c0"></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code dim">К0′</div>
+          <div>
+            <h3>Допустимый сдвиг признаков между кадрами</h3>
+            <p class="why">В процентах кадра удобно задавать перекрытие соседних кадров: 10 % сдвига — это 90 % перекрытия. В пикселях — если ограничение задаёт окно поиска трекера признаков.</p>
+            <div class="fml" data-mode-show="pct"><i>Δu</i><sub>доп</sub> = <i>p</i>·<i>W</i>,&ensp; <i>Δv</i><sub>доп</sub> = <i>p</i>·<i>H</i></div>
+            <div class="fml" data-mode-show="px"><i>Δu</i><sub>доп</sub> = <i>Δv</i><sub>доп</sub> = заданное число пикселей</div>
+            <div class="subst" data-sub="du"></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">К1</div>
+          <div>
+            <h3>Боковые камеры при движении вдоль ряда</h3>
+            <p class="why">Листва в <i>Z</i><sub>бок</sub> от камеры проносится через кадр быстрее всего. По модели камеры-обскуры <i>u</i> = <i>f</i><sub>x</sub>·<i>X</i> / <i>Z</i>: при сдвиге робота на <i>v</i>·<i>T</i> картинка сдвигается на <i>f</i><sub>x</sub>·<i>v</i>·<i>T</i> / <i>Z</i> пикселей.</p>
+            <div class="fml"><i>u̇</i> = <span class="fr"><span><i>f</i><sub>x</sub>·<i>v</i></span><span><i>Z</i><sub>бок</sub></span></span>,&ensp; <i>f</i><sub>К1</sub> = <span class="fr"><span><i>u̇</i></span><span><i>Δu</i><sub>доп</sub></span></span></div>
+            <div class="subst" data-sub="k1"></div>
+            <p class="note" data-mode-show="pct">При сдвиге в процентах кадра разрешение сокращается, и частота зависит только от объектива и матрицы: <span style="font-family:var(--serif)"><i>f</i><sub>К1</sub> = <span class="fr"><span><i>f</i>·<i>v</i></span><span><i>l</i><sub>м</sub>·<i>Z</i><sub>бок</sub>·<i>p</i></span></span></span></p>
+            <div class="res"><span>f<sub>К1</sub> = <span class="big" data-out="f_k1"></span></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">К2</div>
+          <div>
+            <h3>Разворот в конце ряда</h3>
+            <p class="why">При повороте картинка сдвигается во всех камерах одинаково, независимо от расстояния до объектов. На краю кадра сдвиг больше, чем в центре, в 1 / cos² раз.</p>
+            <div class="fml"><i>u̇</i><sub>пов</sub> = <span class="fr"><span><i>f</i><sub>x</sub>·<i>ω</i></span><span>cos<sup>2</sup>(HFOV / 2)</span></span>,&ensp; <i>f</i><sub>К2</sub> = <span class="fr"><span><i>u̇</i><sub>пов</sub></span><span><i>Δu</i><sub>доп</sub></span></span></div>
+            <div class="subst" data-sub="k2"></div>
+            <div class="res"><span>f<sub>К2</sub> = <span class="big" data-out="f_k2"></span></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">К3</div>
+          <div>
+            <h3>Тряска по тангажу на неровном грунте</h3>
+            <p class="why">Гусеничная платформа качается вперёд-назад, и картинка прыгает по вертикали. Здесь работает высота кадра <i>H</i>. Пиковую угловую скорость по тангажу возьмите из гироскопа IMU при движении по ряду.</p>
+            <div class="fml"><i>v̇</i> = <span class="fr"><span><i>f</i><sub>y</sub>·<i>ω</i><sub>т</sub></span><span>cos<sup>2</sup>(VFOV / 2)</span></span>,&ensp; <i>f</i><sub>К3</sub> = <span class="fr"><span><i>v̇</i></span><span><i>Δv</i><sub>доп</sub></span></span></div>
+            <div class="subst" data-sub="k3"></div>
+            <div class="res"><span>f<sub>К3</sub> = <span class="big" data-out="f_k3"></span></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">К4</div>
+          <div>
+            <h3>Устаревание позы для регулятора</h3>
+            <p class="why">Робот идёт под небольшим углом ψ к ряду и смещается вбок со скоростью <i>v</i>·sin ψ. Пока не пришла следующая поза, это смещение регулятору не видно, и оно не должно превысить <i>Δ</i><sub>между</sub>.</p>
+            <div class="fml"><i>v</i>·sin <i>ψ</i><sub>max</sub>·(<i>T</i> + <i>τ</i><sub>лок</sub>) ≤ <i>Δ</i><sub>между</sub> &ensp;⇒&ensp; <i>T</i><sub>К4</sub> = <span class="fr"><span><i>Δ</i><sub>между</sub></span><span><i>v</i>·sin <i>ψ</i><sub>max</sub></span></span> − <i>τ</i><sub>лок</sub></div>
+            <div class="subst" data-sub="k4"></div>
+            <div class="res"><span>f<sub>К4</sub> = <span class="big" data-out="f_k4"></span></span><span class="st" data-status="k4"></span></div>
+          </div>
+        </div>
+        <div class="blk total">
+          <div class="code">Σ</div>
+          <div>
+            <h3>Требуемая частота каждой камеры</h3>
+            <div class="fml"><i>f</i><sub>К</sub> = <i>k</i><sub>зап</sub>·max(<i>f</i><sub>К1</sub>; <i>f</i><sub>К2</sub>; <i>f</i><sub>К3</sub>; <i>f</i><sub>К4</sub>) ≤ <i>f</i><sub>кам, max</sub></div>
+            <div class="subst" data-sub="csum"></div>
+            <div class="res"><span>f<sub>К</sub> = <span class="big" data-out="f_cam"></span></span><span class="st" data-status="cam"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="wide">
+      <div class="blk total">
+        <div class="code">Р</div>
+        <div>
+          <h3>Выбор разрешения</h3>
+          <p class="why">Таблица пересчитывает этот лист для стандартных разрешений при тех же объективе и матрице. В режиме процентов кадра частота от разрешения почти не зависит: сдвиг картинки и допуск растут вместе с числом пикселей. В режиме пикселей чем выше разрешение, тем выше нужная частота. Нажмите на разрешение, чтобы выбрать его.</p>
+          <p class="rec" data-sub="crec"></p>
+          <div class="tbl-wrap">
+            <table class="t">
+              <thead><tr><th scope="col">Разрешение</th><th scope="col">Размер пикселя, мкм</th><th scope="col"><i>f</i><sub>x</sub>, пикс.</th><th scope="col"><i>f</i><sub>К</sub>, Гц</th><th scope="col">Итог</th></tr></thead>
+              <tbody data-sub="ctable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-base" role="tabpanel" aria-labelledby="t-base" hidden>
+    <h2>Лист 3. Базис стереопары</h2>
+    <p class="lead">Базис <i>B</i> — расстояние между оптическими центрами двух камер пары. Слишком маленький базис даёт большую погрешность глубины вдали. Слишком большой — вблизи точку видит только одна из камер. Считайте отдельно для передней и боковых пар.</p>
+    <div class="sheet">
+      <div class="inputs">
+        <h3>Исходные данные</h3>
+        <div class="fields" data-fields="base"></div>
+        <p style="margin-top:16px"><button type="button" class="btn" data-reset="base">Вернуть исходные значения листа</button></p>
+      </div>
+      <div class="calc">
+        <div class="blk">
+          <div class="code dim">Б0</div>
+          <div>
+            <h3>Как базис связан с глубиной</h3>
+            <p class="why">Одна и та же точка на левом и правом кадре стоит в разных местах. Этот сдвиг <i>d</i> в пикселях тем больше, чем ближе точка и чем больше базис. Фокусное расстояние в пикселях <i>f</i><sub>x</sub> находим из угла обзора и ширины кадра.</p>
+            <div class="fml"><i>Z</i> = <span class="fr"><span><i>f</i><sub>x</sub>·<i>B</i></span><span><i>d</i></span></span>,&ensp; <i>f</i><sub>x</sub> = <span class="fr"><span><i>W</i></span><span>2·tg(HFOV / 2)</span></span></div>
+            <div class="subst" data-sub="b0"></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Б1</div>
+          <div>
+            <h3>Минимальный базис: точность вдали</h3>
+            <p class="why">Если сдвиг <i>d</i> изменится на один пиксель, глубина изменится на <i>ΔZ</i> — это разрешение стереопары по глубине. Оно растёт с квадратом расстояния, поэтому требуем, чтобы на необходимой дальности <i>Z</i><sub>max</sub> оно было не хуже допустимой погрешности.</p>
+            <div class="fml"><i>ΔZ</i> = <span class="fr"><span><i>Z</i><sup>2</sup></span><span><i>f</i><sub>x</sub>·<i>B</i></span></span> &ensp;⇒&ensp; <i>B</i><sub>min</sub> = <span class="fr"><span><i>Z</i><sub>max</sub><sup>2</sup></span><span><i>f</i><sub>x</sub>·<i>ΔZ</i><sub>доп</sub></span></span></div>
+            <div class="subst" data-sub="bmin"></div>
+            <div class="res"><span><i>B</i><sub>min</sub> = <span class="big" data-out="bmin"></span></span></div>
+            <p class="note">Это оценка с запасом: алгоритмы стереоглубины обычно находят сдвиг точнее одного пикселя.</p>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Б2</div>
+          <div>
+            <h3>Максимальный базис: обе камеры видят ближнюю границу</h3>
+            <p class="why">Каждая камера видит сектор с углом HFOV. Камеры разнесены на <i>B</i>, поэтому общая зона, которую видят обе, начинается не сразу, а на расстоянии <i>Z</i><sub>0</sub>. Ближе точку видит только одна камера, и глубину не определить. Требуем, чтобы общая зона начиналась не дальше ближней границы <i>Z</i><sub>бл</sub>.</p>
+            <svg viewBox="0 0 380 214" role="img" aria-label="Две камеры на расстоянии B, их секторы обзора пересекаются начиная с расстояния Z0" style="width:100%;max-width:380px;margin-top:10px;display:block">
+              <polygon points="180,120.6 229,15 131,15" style="fill:var(--blue-bg)"/>
+              <line x1="150" y1="185" x2="71" y2="15" style="stroke:var(--ink-2);stroke-width:1.2"/>
+              <line x1="150" y1="185" x2="229" y2="15" style="stroke:var(--ink-2);stroke-width:1.2"/>
+              <line x1="210" y1="185" x2="131" y2="15" style="stroke:var(--ink-2);stroke-width:1.2"/>
+              <line x1="210" y1="185" x2="289" y2="15" style="stroke:var(--ink-2);stroke-width:1.2"/>
+              <line x1="180" y1="120.6" x2="344" y2="120.6" style="stroke:var(--ink);stroke-width:1;stroke-dasharray:4 3"/>
+              <line x1="340" y1="185" x2="340" y2="120.6" style="stroke:var(--ink);stroke-width:1.2"/>
+              <line x1="335" y1="185" x2="345" y2="185" style="stroke:var(--ink);stroke-width:1.2"/>
+              <line x1="335" y1="120.6" x2="345" y2="120.6" style="stroke:var(--ink);stroke-width:1.2"/>
+              <circle cx="180" cy="120.6" r="3" style="fill:var(--ink)"/>
+              <rect x="140" y="183" width="20" height="10" rx="2" style="fill:var(--ink)"/>
+              <rect x="200" y="183" width="20" height="10" rx="2" style="fill:var(--ink)"/>
+              <line x1="150" y1="203" x2="210" y2="203" style="stroke:var(--ink);stroke-width:1.2"/>
+              <line x1="150" y1="198" x2="150" y2="208" style="stroke:var(--ink);stroke-width:1.2"/>
+              <line x1="210" y1="198" x2="210" y2="208" style="stroke:var(--ink);stroke-width:1.2"/>
+              <text x="180" y="200" text-anchor="middle" style="font:italic 13px var(--serif);fill:var(--ink)">B</text>
+              <text x="350" y="158" style="font:italic 14px var(--serif);fill:var(--ink)">Z<tspan style="font-size:10px" dy="3">0</tspan></text>
+              <text x="180" y="34" text-anchor="middle" style="font:12px var(--sans);fill:var(--ink)">видят обе</text>
+              <text x="180" y="48" text-anchor="middle" style="font:12px var(--sans);fill:var(--ink)">камеры</text>
+              <text x="140" y="100" text-anchor="middle" style="font:11px var(--sans);fill:var(--ink-2)">только</text>
+              <text x="140" y="113" text-anchor="middle" style="font:11px var(--sans);fill:var(--ink-2)">левая</text>
+              <text x="220" y="100" text-anchor="middle" style="font:11px var(--sans);fill:var(--ink-2)">только</text>
+              <text x="220" y="113" text-anchor="middle" style="font:11px var(--sans);fill:var(--ink-2)">правая</text>
+            </svg>
+            <div class="fml"><i>Z</i><sub>0</sub> = <span class="fr"><span><i>B</i></span><span>2·tg(HFOV / 2)</span></span> ≤ <i>Z</i><sub>бл</sub> &ensp;⇒&ensp; <i>B</i><sub>max</sub> = 2·<i>Z</i><sub>бл</sub>·tg(HFOV / 2)</div>
+            <div class="subst" data-sub="bmax"></div>
+            <div class="res"><span><i>B</i><sub>max</sub> = <span class="big" data-out="bmax"></span></span></div>
+            <p class="note">От разрешения максимальный базис не зависит, только от угла обзора.</p>
+          </div>
+        </div>
+        <div class="blk total">
+          <div class="code">Σ</div>
+          <div>
+            <h3>Допустимый базис</h3>
+            <div class="fml"><i>B</i><sub>min</sub> ≤ <i>B</i> ≤ <i>B</i><sub>max</sub></div>
+            <div class="res"><span class="big" data-out="brange"></span><span class="st" data-status="brange"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="wide">
+      <div class="blk total">
+        <div class="code">Р</div>
+        <div>
+          <h3>Базис и ширина кадра</h3>
+          <p class="why">С ростом ширины кадра минимальный базис уменьшается, а максимальный не меняется, поэтому диапазон расширяется. Нажмите на ширину, чтобы выбрать её.</p>
+          <p class="rec" data-sub="brec"></p>
+          <div class="tbl-wrap">
+            <table class="t">
+              <thead><tr><th scope="col">Ширина кадра <i>W</i>, пикс.</th><th scope="col"><i>f</i><sub>x</sub>, пикс.</th><th scope="col"><i>B</i><sub>min</sub>, мм</th><th scope="col"><i>B</i><sub>max</sub>, мм</th><th scope="col">Итог</th></tr></thead>
+              <tbody data-sub="btable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-fov" role="tabpanel" aria-labelledby="t-fov" hidden>
+    <h2>Лист 4. Угол обзора камеры</h2>
+    <p class="lead">В паспортах камер угол обзора указывают тремя числами: по горизонтали, по вертикали и по диагонали (H, V, D). Лист пересчитывает вертикальный угол, который вы определили по роботу и среде, в горизонтальный и диагональный, чтобы сравнивать камеры по паспорту. Считается для одной камеры стереопары.</p>
+    <div class="sheet">
+      <div class="inputs">
+        <h3>Исходные данные</h3>
+        <div class="fields" data-fields="fov"></div>
+        <p style="margin-top:16px"><button type="button" class="btn" data-reset="fov">Вернуть исходные значения листа</button></p>
+      </div>
+      <div class="calc">
+        <div class="blk">
+          <div class="code dim">Ф0</div>
+          <div>
+            <h3>Почему угол зависит от формы кадра</h3>
+            <p class="why" data-lens-show="rect">Обычный, прямолинейный, объектив отображает луч, идущий под углом θ к оптической оси, в точку на расстоянии f·tg θ от центра матрицы. Стороны и диагональ кадра относятся как W : H : √(W² + H²), поэтому в том же отношении относятся тангенсы половин углов обзора.</p>
+            <p class="why" data-lens-show="fish">Объектив fisheye с равноугольной проекцией отображает луч под углом θ в точку на расстоянии f·θ от центра матрицы. Стороны и диагональ кадра относятся как W : H : √(W² + H²), поэтому в том же отношении относятся сами углы обзора.</p>
+            <div class="fml" data-lens-show="rect"><i>x</i> = <i>f</i> · tg <i>θ</i>,&ensp; <i>k</i><sub>H</sub> = <span class="fr"><span><i>W</i></span><span><i>H</i></span></span>,&ensp; <i>k</i><sub>D</sub> = <span class="fr"><span>√(<i>W</i><sup>2</sup> + <i>H</i><sup>2</sup>)</span><span><i>H</i></span></span></div>
+            <div class="fml" data-lens-show="fish"><i>r</i> = <i>f</i> · <i>θ</i>,&ensp; <i>k</i><sub>H</sub> = <span class="fr"><span><i>W</i></span><span><i>H</i></span></span>,&ensp; <i>k</i><sub>D</sub> = <span class="fr"><span>√(<i>W</i><sup>2</sup> + <i>H</i><sup>2</sup>)</span><span><i>H</i></span></span></div>
+            <div class="subst" data-sub="fv0"></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Ф1</div>
+          <div>
+            <h3>Горизонтальный угол обзора</h3>
+            <div class="fml" data-lens-show="rect">HFOV = 2 · arctg(<i>k</i><sub>H</sub> · tg <span class="fr"><span>VFOV</span><span>2</span></span>)</div>
+            <div class="fml" data-lens-show="fish">HFOV = <i>k</i><sub>H</sub> · VFOV</div>
+            <div class="subst" data-sub="fv1"></div>
+            <div class="res"><span>HFOV = <span class="big" data-out="fv_H"></span></span></div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Ф2</div>
+          <div>
+            <h3>Диагональный угол обзора</h3>
+            <div class="fml" data-lens-show="rect">DFOV = 2 · arctg(<i>k</i><sub>D</sub> · tg <span class="fr"><span>VFOV</span><span>2</span></span>)</div>
+            <div class="fml" data-lens-show="fish">DFOV = <i>k</i><sub>D</sub> · VFOV</div>
+            <div class="subst" data-sub="fv2"></div>
+            <div class="res"><span>DFOV = <span class="big" data-out="fv_D"></span></span></div>
+            <div class="alert warn" data-alert="fv_wide" hidden>Для прямолинейного объектива это очень широкий угол. Такие камеры обычно делают с объективом fisheye, а у него паспортные углы связаны иначе. Если выбранная камера fisheye, переключите тип объектива.</div>
+          </div>
+        </div>
+        <div class="blk">
+          <div class="code">Ф3</div>
+          <div>
+            <h3>Объектив под этот угол</h3>
+            <p class="why">Зная размер пикселя камеры, можно найти размер матрицы и фокусное расстояние объектива, которое даст нужный вертикальный угол. Его сравнивают с паспортом камеры или объектива.</p>
+            <div class="fml" data-lens-show="rect"><i>h</i><sub>м</sub> = <i>p</i> · <i>H</i>,&ensp; <i>f</i> = <span class="fr"><span><i>h</i><sub>м</sub> / 2</span><span>tg(VFOV / 2)</span></span>,&ensp; <i>f</i><sub>y</sub> = <span class="fr"><span><i>H</i> / 2</span><span>tg(VFOV / 2)</span></span></div>
+            <div class="fml" data-lens-show="fish"><i>h</i><sub>м</sub> = <i>p</i> · <i>H</i>,&ensp; <i>f</i> = <span class="fr"><span><i>h</i><sub>м</sub> / 2</span><span>VFOV / 2</span></span>,&ensp; <i>f</i><sub>y</sub> = <span class="fr"><span><i>H</i> / 2</span><span>VFOV / 2</span></span> (угол в радианах)</div>
+            <div class="subst" data-sub="fv3"></div>
+            <div class="res"><span><i>f</i> = <span class="big" data-out="fv_f"></span></span><span><i>f</i><sub>y</sub> = <span class="big" data-out="fv_fy"></span></span></div>
+          </div>
+        </div>
+        <div class="blk total">
+          <div class="code">Σ</div>
+          <div>
+            <h3>Углы обзора для сравнения с паспортом</h3>
+            <div class="res"><span class="big" data-out="fv_all"></span><span class="st info" data-status="fv_lens"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="wide">
+      <div class="blk total">
+        <div class="code">Р</div>
+        <div>
+          <h3>Тот же вертикальный угол при разных форматах кадра</h3>
+          <p class="why">У камер разный формат кадра, поэтому при одном и том же вертикальном угле горизонтальный и диагональный в паспорте отличаются. Таблица помогает сравнивать камеры разных форматов.</p>
+          <div class="tbl-wrap">
+            <table class="t">
+              <thead><tr><th scope="col">Формат кадра W : H</th><th scope="col">VFOV</th><th scope="col">HFOV</th><th scope="col" style="text-align:right">DFOV</th></tr></thead>
+              <tbody data-sub="fv_table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Допущения модели: камера-обскура без дисторсии, главная точка в центре кадра, пиксели квадратные. Листва рядом с боковой камерой считается плоскостью, параллельной ходу робота. Допустимый сдвиг признаков — инженерное допущение, его стоит подтвердить экспериментом: прогнать запись rosbag через RTAB-Map с прореживанием кадров и найти частоту, при которой трек перестаёт теряться. Минимальный базис рассчитан по разрешению стереопары в один пиксель, без учёта конкретного алгоритма стереоглубины. Углы обзора на листе 4 рассчитаны для объектива без дисторсии или для идеального fisheye с равноугольной проекцией; у реальных объективов паспортные углы могут отличаться на несколько градусов.
+  </footer>
+</div>
+
+<script>
+const PRESETS = [[320, 240], [640, 480], [848, 480], [960, 540], [1280, 720], [1280, 960], [1920, 1080]];
+const WIDTHS = [320, 640, 848, 960, 1280, 1920];
+
+const DEFAULTS = {
+  d_v: 4.2, d_hfov: 35.5, a: 1.0, b: 1.1, d_obn: 3.0, s_ost: 0.3, N: 2, tau_obr: 100, tau_reak: 100, d_k: 1.5,
+  W: 640, H: 480, f_mm: 6, l_mm: 3.84, c_v: 4.2, Z_side: 0.45, omega: 30, pitch: 15, psi: 5,
+  mode: "pct", p: 10, du_px: 64, d_stale: 0.02, tau_loc: 100, f_cam_max: 30, c_k: 1.5,
+  b_hfov: 35.5, b_W: 640, Z_max: 3.0, dZ: 0.05, Z_near: 1.0,
+  fv_V: 27, fv_W: 640, fv_H: 480, fv_lens: "rect", fv_px: 6
+};
+const ASPECTS = [["4:3", 4, 3], ["16:9", 16, 9], ["16:10", 16, 10], ["5:4", 5, 4], ["3:2", 3, 2], ["1:1", 1, 1]];
+
+const RAD = Math.PI / 180;
+
+function freqFromT(T) {
+  if (Number.isNaN(T)) return NaN;
+  if (T === Infinity) return 0;
+  return T > 0 ? 1 / T : Infinity;
+}
+
+function computeDepth(s) {
+  const r = {};
+  r.v = s.d_v / 3.6;
+  r.h = s.d_hfov * RAD / 2;
+  r.S = r.v ** 2 / (2 * s.a);
+  r.tau = (s.tau_obr + s.tau_reak) / 1000;
+  r.d_side = (s.b / 2) / Math.tan(r.h);
+  r.T_g1 = ((s.d_obn - s.s_ost - r.S) / r.v - r.tau) / s.N;
+  r.T_g2 = ((r.d_side - s.s_ost - r.S) / r.v - r.tau) / s.N;
+  r.f_g1 = freqFromT(r.T_g1);
+  r.f_g2 = freqFromT(r.T_g2);
+  r.f_raw = Math.max(r.f_g1, r.f_g2);
+  r.f = r.f_raw * s.d_k;
+  r.crit = ([["Г1", r.f_g1], ["Г2", r.f_g2]].find(x => x[1] === r.f_raw) || ["—"])[0];
+  return r;
+}
+
+function computeCam(s, W, H) {
+  W = W === undefined ? s.W : W;
+  H = H === undefined ? s.H : H;
+  const r = { W, H };
+  r.v = s.c_v / 3.6;
+  r.pix_um = s.l_mm / W * 1000;
+  r.fx = s.f_mm * W / s.l_mm;
+  r.h = Math.atan(s.l_mm / (2 * s.f_mm));
+  r.hfov = 2 * r.h / RAD;
+  r.hv = Math.atan((H / 2) / r.fx);
+  r.vfov = 2 * r.hv / RAD;
+  r.du = s.mode === "pct" ? s.p / 100 * W : s.du_px;
+  r.dv = s.mode === "pct" ? s.p / 100 * H : s.du_px;
+  r.u1 = r.fx * r.v / s.Z_side;
+  r.f_k1 = r.u1 / r.du;
+  r.w = s.omega * RAD;
+  r.u2 = r.fx * r.w / Math.cos(r.h) ** 2;
+  r.f_k2 = r.u2 / r.du;
+  r.wp = s.pitch * RAD;
+  r.u3 = r.fx * r.wp / Math.cos(r.hv) ** 2;
+  r.f_k3 = r.u3 / r.dv;
+  r.T_k4 = s.d_stale / (r.v * Math.sin(s.psi * RAD)) - s.tau_loc / 1000;
+  r.f_k4 = freqFromT(r.T_k4);
+  const kc = [["К1", r.f_k1], ["К2", r.f_k2], ["К3", r.f_k3], ["К4", r.f_k4]];
+  r.f_raw = Math.max(...kc.map(x => x[1]));
+  r.crit = (kc.find(x => x[1] === r.f_raw) || ["—"])[0];
+  r.f = r.f_raw * s.c_k;
+  r.state = !Number.isFinite(r.f) ? "bad" : s.f_cam_max >= r.f ? "ok" : s.f_cam_max >= r.f_raw ? "warn" : "bad";
+  return r;
+}
+
+function computeBase(s, W) {
+  W = W === undefined ? s.b_W : W;
+  const r = { W };
+  r.h = s.b_hfov * RAD / 2;
+  r.fx = (W / 2) / Math.tan(r.h);
+  r.Bmin = s.Z_max ** 2 / (r.fx * s.dZ);
+  r.Bmax = 2 * s.Z_near * Math.tan(r.h);
+  r.ok = r.Bmin <= r.Bmax;
+  return r;
+}
+
+function camTable(s) {
+  const rows = PRESETS.map(([W, H]) => {
+    const r = computeCam(s, W, H);
+    return { W, H, r, ok: Number.isFinite(r.f) && r.f <= s.f_cam_max };
+  });
+  const okRows = rows.filter(x => x.ok);
+  return { rows, best: okRows.length ? okRows[okRows.length - 1] : null, all: okRows.length === rows.length, none: okRows.length === 0 };
+}
+
+function baseTable(s) {
+  const rows = WIDTHS.map(W => { const r = computeBase(s, W); return { W, r, ok: r.ok }; });
+  return { rows, best: rows.find(x => x.ok) || null };
+}
+
+function computeFov(s, W, H) {
+  W = W === undefined ? s.fv_W : W;
+  H = H === undefined ? s.fv_H : H;
+  const r = { W, H };
+  r.rect = s.fv_lens === "rect";
+  r.v = s.fv_V * RAD / 2;
+  r.kH = W / H;
+  r.kD = Math.hypot(W, H) / H;
+  if (r.rect) {
+    r.tv = Math.tan(r.v);
+    r.hH = Math.atan(r.kH * r.tv);
+    r.hD = Math.atan(r.kD * r.tv);
+    r.fy = (H / 2) / r.tv;
+  } else {
+    r.hH = r.kH * r.v;
+    r.hD = r.kD * r.v;
+    r.fy = (H / 2) / r.v;
+  }
+  r.HFOV = 2 * r.hH / RAD;
+  r.DFOV = 2 * r.hD / RAD;
+  r.wS = s.fv_px * W / 1000;
+  r.hS = s.fv_px * H / 1000;
+  r.dS = Math.hypot(r.wS, r.hS);
+  r.fmm = r.rect ? (r.hS / 2) / r.tv : (r.hS / 2) / r.v;
+  r.wide = r.rect && r.HFOV > 100;
+  return r;
+}
+
+function fovTable(s) {
+  return ASPECTS.map(([n, a, b]) => Object.assign({ name: n, a, b }, computeFov(s, a, b)));
+}
+
+if (typeof module !== "undefined") module.exports = { computeDepth, computeCam, computeBase, camTable, baseTable, computeFov, fovTable, DEFAULTS, PRESETS, WIDTHS };
+
+</script>
+<script>
+(function(){
+  const FIELDS = {
+    depth: [
+      {id:"d_v", head:"Робот", label:"Максимальная скорость <i>v</i>", unit:"км/ч", rule:"pos"},
+      {id:"a", label:"Замедление при экстренном торможении <i>a</i>", unit:"м/с²", rule:"pos", hint:"Измерить на реальной платформе, на грунте и на уклоне вниз."},
+      {id:"b", label:"Ширина робота <i>b</i>", unit:"м", rule:"pos"},
+      {id:"d_hfov", head:"Передняя камера", label:"Горизонтальный угол обзора HFOV", unit:"°", rule:"fov"},
+      {id:"d_obn", head:"Препятствие и задержки", label:"Дальность, с которой видно препятствие впереди <i>d</i><sub>обн</sub>", unit:"м", rule:"pos"},
+      {id:"s_ost", label:"Запас до препятствия после остановки <i>s</i><sub>ост</sub>", unit:"м", rule:"nonneg"},
+      {id:"N", label:"Кадров для подтверждения препятствия <i>N</i>", unit:"шт.", rule:"int1"},
+      {id:"tau_obr", label:"Задержка от снимка до карты препятствий <i>τ</i><sub>обр</sub>", unit:"мс", rule:"nonneg", hint:"Расчёт глубины, облако точек и обновление costmap."},
+      {id:"tau_reak", label:"Задержка реакции регулятора и привода <i>τ</i><sub>реак</sub>", unit:"мс", rule:"nonneg"},
+      {id:"d_k", label:"Коэффициент запаса <i>k</i><sub>зап</sub>", unit:"", rule:"k"}
+    ],
+    cam_res: [
+      {id:"W", label:"Ширина <i>W</i>", unit:"пикс.", rule:"int1"},
+      {id:"H", label:"Высота <i>H</i>", unit:"пикс.", rule:"int1"}
+    ],
+    cam_lens: [
+      {id:"f_mm", label:"Фокусное расстояние объектива <i>f</i>", unit:"мм", rule:"pos", hint:"Из паспорта объектива. В ВКР 6 мм."},
+      {id:"l_mm", label:"Ширина светочувствительной матрицы <i>l</i><sub>м</sub>", unit:"мм", rule:"pos", hint:"Размер пикселя × число пикселей по ширине. В ВКР 6 мкм × 640 = 3,84 мм."}
+    ],
+    cam_move: [
+      {id:"c_v", head:"Движение", label:"Максимальная скорость <i>v</i>", unit:"км/ч", rule:"pos"},
+      {id:"Z_side", label:"Расстояние от боковой камеры до листвы <i>Z</i><sub>бок</sub>", unit:"м", rule:"pos"},
+      {id:"omega", label:"Угловая скорость на развороте <i>ω</i>", unit:"°/с", rule:"nonneg", hint:"Задаётся ограничением в Nav2."},
+      {id:"pitch", label:"Пиковая угловая скорость по тангажу <i>ω</i><sub>т</sub>", unit:"°/с", rule:"nonneg", hint:"Взять из гироскопа IMU при движении по ряду."},
+      {id:"psi", label:"Максимальный угол корпуса к ряду <i>ψ</i><sub>max</sub>", unit:"°", rule:"deg90"}
+    ],
+    cam_tol: [
+      {id:"p", label:"Допустимый сдвиг <i>p</i>", unit:"% кадра", rule:"pct", mode:"pct"},
+      {id:"du_px", label:"Допустимый сдвиг <i>Δu</i><sub>доп</sub>", unit:"пикс.", rule:"pos", mode:"px"},
+      {id:"d_stale", label:"Допустимое смещение из-за устаревания позы <i>Δ</i><sub>между</sub>", unit:"м", rule:"pos"},
+      {id:"tau_loc", label:"Задержка позы от RTAB-Map <i>τ</i><sub>лок</sub>", unit:"мс", rule:"nonneg"},
+      {id:"f_cam_max", label:"Максимальная частота камер <i>f</i><sub>кам, max</sub>", unit:"Гц", rule:"pos"},
+      {id:"c_k", label:"Коэффициент запаса <i>k</i><sub>зап</sub>", unit:"", rule:"k"}
+    ],
+    base: [
+      {id:"b_hfov", head:"Камера", label:"Горизонтальный угол обзора HFOV", unit:"°", rule:"fov"},
+      {id:"b_W", label:"Ширина кадра <i>W</i>", unit:"пикс.", rule:"int1"},
+      {id:"Z_max", head:"Для минимального базиса", label:"Необходимая дальность работы <i>Z</i><sub>max</sub>", unit:"м", rule:"pos"},
+      {id:"dZ", label:"Допустимая погрешность глубины на этой дальности <i>ΔZ</i><sub>доп</sub>", unit:"м", rule:"pos"},
+      {id:"Z_near", head:"Для максимального базиса", label:"Ближняя граница рабочей зоны <i>Z</i><sub>бл</sub>", unit:"м", rule:"pos", hint:"Для боковых пар — расстояние до листвы."}
+    ],
+    fov: [
+      {id:"fv_V", head:"Требуемый угол", label:"Вертикальный угол обзора VFOV", unit:"°", rule:"fov", hint:"Тот, что вы рассчитали по роботу и среде."},
+      {id:"fv_W", head:"Камера", label:"Ширина кадра <i>W</i>", unit:"пикс.", rule:"int1"},
+      {id:"fv_H", label:"Высота кадра <i>H</i>", unit:"пикс.", rule:"int1"},
+      {id:"fv_lens", label:"Тип объектива", options:[["rect","обычный (прямолинейный)"],["fish","fisheye (равноугольный)"]]},
+      {id:"fv_px", label:"Размер пикселя <i>p</i>", unit:"мкм", rule:"pos", hint:"Из паспорта датчика камеры. Нужен только для подбора объектива."}
+    ]
+  };
+  const SHEET_GROUPS = { depth: ["depth"], cam: ["cam_res", "cam_lens", "cam_move", "cam_tol"], base: ["base"], fov: ["fov"] };
+  const RULES = {
+    pos:   [v => v > 0, "Введите число больше 0"],
+    nonneg:[v => v >= 0, "Введите число не меньше 0"],
+    int1:  [v => Number.isInteger(v) && v >= 1, "Введите целое число от 1"],
+    pct:   [v => v > 0 && v <= 100, "Введите число от 0 до 100"],
+    fov:   [v => v > 0 && v < 180, "Введите угол от 0 до 180°"],
+    k:     [v => v >= 1, "Введите число не меньше 1"],
+    deg90: [v => v >= 0 && v < 90, "Введите угол от 0 до 90°"]
+  };
+  const ALL = Object.values(FIELDS).flat();
+  const KEY = "dgrape-freq-v6";
+  const S = Object.assign({}, DEFAULTS);
+  const raw = {};
+  let tab = "depth";
+
+  function load(){
+    try {
+      const d = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (d && d.raw) { Object.assign(raw, d.raw); if (d.mode) S.mode = d.mode; if (d.tab) tab = d.tab; }
+    } catch(e) {}
+  }
+  function save(){
+    try { localStorage.setItem(KEY, JSON.stringify({raw, mode:S.mode, tab})); } catch(e) {}
+  }
+  const num = t => { const s = String(t).trim().replace(",", "."); return s === "" ? NaN : Number(s); };
+  const F = (x, d) => Number.isFinite(x) ? x.toFixed(d).replace(".", ",").replace("-", "−") : "—";
+  const Fhz = x => x === Infinity ? "невыполнимо" : Number.isFinite(x) ? F(x, 1) : "—";
+  const hz = x => x === Infinity ? "невыполнимо" : `${Fhz(x)} Гц`;
+  const mm = x => F(x * 1000, 0);
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+  function buildFields(){
+    for (const [group, list] of Object.entries(FIELDS)) {
+      const box = $(`[data-fields="${group}"]`);
+      for (const f of list) {
+        if (f.head) { const hd = document.createElement("p"); hd.className = "grp"; hd.textContent = f.head; box.appendChild(hd); }
+        const div = document.createElement("div");
+        div.className = "fld";
+        if (f.mode) div.dataset.modeShow = f.mode;
+        if (f.options) {
+          div.innerHTML = `<label for="in-${f.id}">${f.label}</label><div class="ctl"><select id="in-${f.id}">` + f.options.map(([v, n]) => `<option value="${v}">${n}</option>`).join("") + `</select></div>`;
+          box.appendChild(div);
+          const sel = div.querySelector("select");
+          sel.value = raw[f.id] !== undefined ? raw[f.id] : DEFAULTS[f.id];
+          S[f.id] = sel.value; raw[f.id] = sel.value;
+          sel.addEventListener("change", () => { S[f.id] = sel.value; raw[f.id] = sel.value; render(); save(); });
+          continue;
+        }
+        div.innerHTML =
+          `<label for="in-${f.id}">${f.label}</label>` +
+          `<div class="ctl"><input id="in-${f.id}" type="text" inputmode="decimal" autocomplete="off" aria-describedby="err-${f.id}"><span class="unit">${f.unit}</span></div>` +
+          (f.hint ? `<p class="hint">${f.hint}</p>` : "") +
+          `<p class="err" id="err-${f.id}" hidden></p>`;
+        box.appendChild(div);
+        const inp = div.querySelector("input");
+        const start = raw[f.id] !== undefined ? raw[f.id] : String(DEFAULTS[f.id]).replace(".", ",");
+        inp.value = start;
+        inp.addEventListener("input", () => { setField(f, inp.value); if (f.id === "W" || f.id === "H") syncPreset(); render(); save(); });
+        setField(f, start);
+      }
+    }
+    $$(".fields > .grp:first-child").forEach(el => { el.style.borderTop = "0"; el.style.paddingTop = "0"; el.style.marginTop = "0"; });
+  }
+  function setField(f, text){
+    raw[f.id] = text;
+    const v = num(text);
+    const [ok, msg] = RULES[f.rule];
+    const good = Number.isFinite(v) && ok(v);
+    S[f.id] = good ? v : NaN;
+    const inp = $(`#in-${f.id}`), err = $(`#err-${f.id}`);
+    inp.setAttribute("aria-invalid", good ? "false" : "true");
+    err.hidden = good;
+    err.textContent = good ? "" : msg;
+  }
+  function setVal(id, v){
+    const f = ALL.find(x => x.id === id);
+    if (f.options) { $(`#in-${id}`).value = v; S[id] = v; raw[id] = v; return; }
+    const t = String(v).replace(".", ",");
+    $(`#in-${id}`).value = t;
+    setField(f, t);
+  }
+  function buildPreset(){
+    const sel = $("#preset");
+    sel.innerHTML = PRESETS.map(([w, h]) => `<option value="${w}x${h}">${w}×${h}</option>`).join("") + `<option value="custom">своё</option>`;
+    sel.addEventListener("change", () => {
+      if (sel.value === "custom") return;
+      const [w, h] = sel.value.split("x").map(Number);
+      setVal("W", w); setVal("H", h); render(); save();
+    });
+  }
+  function syncPreset(){
+    const key = `${S.W}x${S.H}`;
+    $("#preset").value = PRESETS.some(([w, h]) => `${w}x${h}` === key) ? key : "custom";
+  }
+  function setMode(m){
+    S.mode = m;
+    $$('input[name="mode"]').forEach(r => r.checked = r.value === m);
+    $$("[data-mode-show]").forEach(el => el.hidden = el.dataset.modeShow !== m);
+  }
+  function selectTab(name, focus){
+    tab = name;
+    for (const t of ["depth", "cam", "base", "fov"]) {
+      const b = $(`#t-${t}`), p = $(`#p-${t}`), on = t === name;
+      b.setAttribute("aria-selected", on ? "true" : "false");
+      b.tabIndex = on ? 0 : -1;
+      p.hidden = !on;
+      if (on && focus) b.focus();
+    }
+    save();
+  }
+
+  const sub = (k, html) => { const el = $(`[data-sub="${k}"]`); if (el) el.innerHTML = html; };
+  const out = (k, text) => $$(`[data-out="${k}"]`).forEach(el => el.textContent = text);
+  const status = (k, state, text) => {
+    const el = $(`[data-status="${k}"]`);
+    if (!el) return;
+    el.className = "st " + (state || "");
+    el.textContent = text || "";
+    el.hidden = !text;
+  };
+  const cell = (k, state, html) => { const el = $(`[data-cell="${k}"]`); el.className = state || ""; el.innerHTML = html; };
+
+  function renderDepth(){
+    const s = S, r = computeDepth(s);
+    sub("d0", `<i>v</i> = ${F(s.d_v,2)} / 3,6 = <b>${F(r.v,3)} м/с</b>,&ensp; <i>S</i><sub>торм</sub> = ${F(r.v,3)}<sup>2</sup> / (2·${F(s.a,2)}) = <b>${F(r.S,3)} м</b>,&ensp; <i>τ</i><sub>Σ</sub> = (${F(s.tau_obr,0)} + ${F(s.tau_reak,0)}) / 1000 = <b>${F(r.tau,3)} с</b>`);
+    sub("g1", `<i>T</i><sub>Г1</sub> = [(${F(s.d_obn,2)} − ${F(s.s_ost,2)} − ${F(r.S,3)}) / ${F(r.v,3)} − ${F(r.tau,3)}] / ${F(s.N,0)} = <b>${F(r.T_g1,3)} с</b>`);
+    out("f_g1", hz(r.f_g1));
+    status("g1", r.f_g1 === Infinity ? "bad" : "", r.f_g1 === Infinity ? "Не успеть остановиться при любой частоте: снизьте скорость, увеличьте дальность или сократите задержки" : "");
+    sub("g2", `<i>d</i><sub>бок</sub> = ${F(s.b/2,3)} / tg ${F(s.d_hfov/2,2)}° = <b>${F(r.d_side,3)} м</b><br><i>T</i><sub>Г2</sub> = [(${F(r.d_side,3)} − ${F(s.s_ost,2)} − ${F(r.S,3)}) / ${F(r.v,3)} − ${F(r.tau,3)}] / ${F(s.N,0)} = <b>${F(r.T_g2,3)} с</b>`);
+    out("f_g2", hz(r.f_g2));
+    status("g2", r.f_g2 === Infinity ? "bad" : "", r.f_g2 === Infinity ? "Не успеть остановиться при любой частоте: снизьте скорость или расширьте обзор" : "");
+    sub("dsum", `<i>f</i><sub>глуб</sub> = ${F(s.d_k,2)}·max(${Fhz(r.f_g1)}; ${Fhz(r.f_g2)}) = <b>${hz(r.f)}</b>`);
+    out("f_depth", hz(r.f));
+    status("depth", Number.isFinite(r.f) ? "info" : "bad", Number.isFinite(r.f) ? `определяет ${r.crit}` : "есть невыполнимый критерий");
+    cell("depth", Number.isFinite(r.f) ? "" : "bad", `${hz(r.f)}<small>с запасом ${F(s.d_k,2)}, определяет ${Number.isFinite(r.f) ? r.crit : "—"}</small>`);
+  }
+
+  function renderCam(){
+    const s = S, r = computeCam(s);
+    sub("c0", `<i>p</i><sub>пикс</sub> = ${F(s.l_mm,2)} мм / ${F(s.W,0)} = <b>${F(r.pix_um,2)} мкм</b>,&ensp; <i>f</i><sub>x</sub> = ${F(s.f_mm,2)}·${F(s.W,0)} / ${F(s.l_mm,2)} = <b>${F(r.fx,1)} пикс.</b><br>HFOV = 2·arctg(${F(s.l_mm,2)} / (2·${F(s.f_mm,2)})) = <b>${F(r.hfov,1)}°</b>,&ensp; VFOV = 2·arctg(${F(s.H,0)} / (2·${F(r.fx,1)})) = <b>${F(r.vfov,1)}°</b>,&ensp; <i>v</i> = ${F(s.c_v,2)} / 3,6 = <b>${F(r.v,3)} м/с</b>`);
+    sub("du", s.mode === "pct"
+      ? `<i>Δu</i><sub>доп</sub> = ${F(s.p,1)} %·${F(s.W,0)} = <b>${F(r.du,1)} пикс.</b>,&ensp; <i>Δv</i><sub>доп</sub> = ${F(s.p,1)} %·${F(s.H,0)} = <b>${F(r.dv,1)} пикс.</b>`
+      : `<i>Δu</i><sub>доп</sub> = <i>Δv</i><sub>доп</sub> = <b>${F(s.du_px,0)} пикс.</b>, это ${F(s.du_px/s.W*100,1)} % ширины и ${F(s.du_px/s.H*100,1)} % высоты кадра`);
+    sub("k1", `<i>u̇</i> = ${F(r.fx,1)}·${F(r.v,3)} / ${F(s.Z_side,2)} = <b>${F(r.u1,0)} пикс./с</b>,&ensp; <i>f</i><sub>К1</sub> = ${F(r.u1,0)} / ${F(r.du,1)} = <b>${F(r.f_k1,1)} Гц</b>`);
+    out("f_k1", hz(r.f_k1));
+    sub("k2", `<i>ω</i> = ${F(s.omega,1)}°/с = ${F(r.w,3)} рад/с,&ensp; <i>u̇</i><sub>пов</sub> = ${F(r.fx,1)}·${F(r.w,3)} / cos<sup>2</sup> ${F(r.hfov/2,2)}° = <b>${F(r.u2,0)} пикс./с</b>,&ensp; <i>f</i><sub>К2</sub> = ${F(r.u2,0)} / ${F(r.du,1)} = <b>${F(r.f_k2,1)} Гц</b>`);
+    out("f_k2", hz(r.f_k2));
+    sub("k3", `<i>ω</i><sub>т</sub> = ${F(s.pitch,1)}°/с = ${F(r.wp,3)} рад/с,&ensp; <i>v̇</i> = ${F(r.fx,1)}·${F(r.wp,3)} / cos<sup>2</sup> ${F(r.vfov/2,2)}° = <b>${F(r.u3,0)} пикс./с</b>,&ensp; <i>f</i><sub>К3</sub> = ${F(r.u3,0)} / ${F(r.dv,1)} = <b>${F(r.f_k3,1)} Гц</b>`);
+    out("f_k3", hz(r.f_k3));
+    sub("k4", `<i>T</i><sub>К4</sub> = ${F(s.d_stale,3)} / (${F(r.v,3)}·sin ${F(s.psi,1)}°) − ${F(s.tau_loc/1000,3)} = <b>${r.T_k4 === Infinity ? "∞" : F(r.T_k4,3) + " с"}</b>`);
+    out("f_k4", hz(r.f_k4));
+    status("k4", r.f_k4 === Infinity ? "bad" : "", r.f_k4 === Infinity ? "Невыполнимо при любой частоте: сократите задержку τ_лок или увеличьте Δ_между" : "");
+    sub("csum", `<i>f</i><sub>К</sub> = ${F(s.c_k,2)}·max(${Fhz(r.f_k1)}; ${Fhz(r.f_k2)}; ${Fhz(r.f_k3)}; ${Fhz(r.f_k4)}) = <b>${hz(r.f)}</b>`);
+    out("f_cam", hz(r.f));
+    const txt = !Number.isFinite(r.f) ? "есть невыполнимый критерий"
+      : r.state === "ok" ? `камеры на ${F(s.f_cam_max,0)} Гц успевают, определяет ${r.crit}`
+      : r.state === "warn" ? `успевают только без запаса, определяет ${r.crit}`
+      : `камерам на ${F(s.f_cam_max,0)} Гц не хватает, определяет ${r.crit}`;
+    status("cam", r.state, txt);
+    cell("cam", r.state, `${hz(r.f)}<small>камеры дают ${F(s.f_cam_max,0)} Гц, определяет ${r.crit}</small>`);
+
+    const t = camTable(s), cur = `${s.W}x${s.H}`;
+    sub("ctable", t.rows.map(x => `<tr class="${`${x.W}x${x.H}` === cur ? "cur" : ""}"><td><button type="button" class="linklike" data-pick="${x.W}x${x.H}">${x.W}×${x.H}</button></td>` +
+      `<td>${F(x.r.pix_um,2)}</td><td>${F(x.r.fx,0)}</td><td class="${x.ok ? "" : "bad"}">${Fhz(x.r.f)}</td>` +
+      `<td class="${x.ok ? "ok" : "bad"} note-c">${x.ok ? "камеры успевают" : "камерам не хватает частоты"}</td></tr>`).join(""));
+    $$("[data-pick]").forEach(b => b.addEventListener("click", () => {
+      const [w, h] = b.dataset.pick.split("x").map(Number);
+      setVal("W", w); setVal("H", h); syncPreset(); render(); save();
+    }));
+    let rec;
+    if (t.none) rec = `<b>Камеры не успевают ни при одном стандартном разрешении.</b> Помогут меньшая скорость, большее Z<sub>бок</sub>, больший допустимый сдвиг или более быстрые камеры.`;
+    else if (t.all && s.mode === "pct") rec = "Камеры успевают при любом разрешении из таблицы: в режиме процентов частота от него почти не зависит.";
+    else rec = `Наибольшее разрешение, при котором камеры успевают: <b>${t.best.W}×${t.best.H}</b>.`;
+    sub("crec", rec);
+  }
+
+  function renderBase(){
+    const s = S, r = computeBase(s);
+    sub("b0", `<i>f</i><sub>x</sub> = ${F(s.b_W,0)} / (2·tg ${F(s.b_hfov/2,2)}°) = <b>${F(r.fx,1)} пикс.</b>`);
+    sub("bmin", `<i>B</i><sub>min</sub> = ${F(s.Z_max,2)}<sup>2</sup> / (${F(r.fx,1)}·${F(s.dZ,3)}) = <b>${F(r.Bmin,4)} м</b>`);
+    out("bmin", `${mm(r.Bmin)} мм`);
+    sub("bmax", `<i>B</i><sub>max</sub> = 2·${F(s.Z_near,2)}·tg ${F(s.b_hfov/2,2)}° = <b>${F(r.Bmax,4)} м</b>`);
+    out("bmax", `${mm(r.Bmax)} мм`);
+    out("brange", r.ok ? `${mm(r.Bmin)} … ${mm(r.Bmax)} мм` : "нет подходящего базиса");
+    status("brange", r.ok ? "ok" : "bad", r.ok ? "диапазон существует" : "минимальный базис больше максимального: увеличьте ширину кадра, ослабьте точность, уменьшите дальность или отодвиньте ближнюю границу");
+    cell("base", r.ok ? "ok" : "bad", r.ok ? `${mm(r.Bmin)} … ${mm(r.Bmax)} мм<small>от минимального до максимального</small>` : `нет решения<small>см. лист 3</small>`);
+
+    const t = baseTable(s);
+    sub("btable", t.rows.map(x => `<tr class="${x.W === s.b_W ? "cur" : ""}"><td><button type="button" class="linklike" data-pickw="${x.W}">${x.W}</button></td>` +
+      `<td>${F(x.r.fx,0)}</td><td>${mm(x.r.Bmin)}</td><td>${mm(x.r.Bmax)}</td>` +
+      `<td class="${x.ok ? "ok" : "bad"} note-c">${x.ok ? "диапазон есть" : "диапазона нет"}</td></tr>`).join(""));
+    $$("[data-pickw]").forEach(b => b.addEventListener("click", () => { setVal("b_W", Number(b.dataset.pickw)); render(); save(); }));
+    sub("brec", t.best
+      ? `Наименьшая ширина кадра, при которой подходящий базис существует: <b>${t.best.W} пикс.</b>`
+      : `<b>Подходящего базиса нет ни при одной ширине кадра из таблицы.</b> Ослабьте требование к точности, уменьшите дальность работы или отодвиньте ближнюю границу.`);
+  }
+
+  function renderFov(){
+    const s = S, r = computeFov(s);
+    $$("[data-lens-show]").forEach(el => el.hidden = el.dataset.lensShow !== s.fv_lens);
+    const half = F(s.fv_V / 2, 2);
+    sub("fv0", `<i>k</i><sub>H</sub> = ${F(s.fv_W,0)} / ${F(s.fv_H,0)} = <b>${F(r.kH,3)}</b>,&ensp; <i>k</i><sub>D</sub> = √(${F(s.fv_W,0)}<sup>2</sup> + ${F(s.fv_H,0)}<sup>2</sup>) / ${F(s.fv_H,0)} = <b>${F(r.kD,3)}</b>`);
+    sub("fv1", r.rect ? `HFOV = 2 · arctg(${F(r.kH,3)} · tg ${half}°) = 2 · arctg ${F(r.kH * r.tv,4)} = <b>${F(r.HFOV,1)}°</b>` : `HFOV = ${F(r.kH,3)} · ${F(s.fv_V,1)}° = <b>${F(r.HFOV,1)}°</b>`);
+    sub("fv2", r.rect ? `DFOV = 2 · arctg(${F(r.kD,3)} · tg ${half}°) = 2 · arctg ${F(r.kD * r.tv,4)} = <b>${F(r.DFOV,1)}°</b>` : `DFOV = ${F(r.kD,3)} · ${F(s.fv_V,1)}° = <b>${F(r.DFOV,1)}°</b>`);
+    out("fv_H", `${F(r.HFOV,1)}°`); out("fv_D", `${F(r.DFOV,1)}°`);
+    $('[data-alert="fv_wide"]').hidden = !r.wide;
+    sub("fv3", `Матрица ${F(r.wS,2)} × ${F(r.hS,2)} мм, диагональ ${F(r.dS,2)} мм;&ensp; <i>f</i> = ${F(r.hS / 2,3)} / ${r.rect ? "tg " + half + "°" : F(r.v,4)} = <b>${F(r.fmm,2)} мм</b>,&ensp; <i>f</i><sub>y</sub> = ${F(s.fv_H / 2,1)} / ${r.rect ? "tg " + half + "°" : F(r.v,4)} = <b>${F(r.fy,1)} пикс.</b>`);
+    out("fv_f", `${F(r.fmm,2)} мм`); out("fv_fy", `${F(r.fy,0)} пикс.`);
+    out("fv_all", `H ${F(r.HFOV,1)}° × V ${F(s.fv_V,1)}° × D ${F(r.DFOV,1)}°`);
+    status("fv_lens", "info", r.rect ? "объектив прямолинейный" : "объектив fisheye");
+    const cur = s.fv_W / s.fv_H;
+    sub("fv_table", fovTable(s).map(x => `<tr${Math.abs(x.a / x.b - cur) < 1e-6 ? ' class="cur"' : ""}><td>${x.name}</td><td>${F(s.fv_V,1)}°</td><td>${F(x.HFOV,1)}°</td><td>${F(x.DFOV,1)}°</td></tr>`).join(""));
+    cell("fov", "", `${F(r.HFOV,1)}° × ${F(s.fv_V,1)}° × ${F(r.DFOV,1)}°<small>H × V × D, ${r.rect ? "прямолинейный объектив" : "fisheye"}</small>`);
+  }
+
+  function render(){ renderDepth(); renderCam(); renderBase(); renderFov(); }
+
+  load();
+  buildPreset();
+  buildFields();
+  syncPreset();
+  setMode(S.mode);
+  $$('input[name="mode"]').forEach(r => r.addEventListener("change", () => { setMode(r.value); render(); save(); }));
+  const tabs = ["depth", "cam", "base", "fov"];
+  tabs.forEach((t, i) => {
+    const b = $(`#t-${t}`);
+    b.addEventListener("click", () => selectTab(t));
+    b.addEventListener("keydown", e => {
+      if (e.key === "ArrowRight") selectTab(tabs[(i + 1) % tabs.length], true);
+      if (e.key === "ArrowLeft") selectTab(tabs[(i + tabs.length - 1) % tabs.length], true);
+    });
+  });
+  $$("[data-reset]").forEach(btn => btn.addEventListener("click", () => {
+    const sheet = btn.dataset.reset;
+    for (const g of SHEET_GROUPS[sheet]) for (const f of FIELDS[g]) setVal(f.id, DEFAULTS[f.id]);
+    if (sheet === "cam") { setMode(DEFAULTS.mode); syncPreset(); }
+    render(); save();
+  }));
+  selectTab(tabs.includes(tab) ? tab : "depth");
+  render();
+})();
+</script>
+</body>
+</html>
